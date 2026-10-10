@@ -1,0 +1,5 @@
+# Normalise text files to LF so Windows and Mac checkouts are identical
+* text=auto eol=lf
+
+# Raw source data: store and check out byte-for-byte, never convert
+data/*.csv -text

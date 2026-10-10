@@ -1,0 +1,156 @@
+"""
+Land raw source files in the bronze layer.
+
+For each file: COPY it into a temp table, delete any rows previously loaded
+from the same file, and insert the new rows with lineage metadata
+(source_file, source_row_num). All of that happens in one transaction per
+file, so a rerun never duplicates rows and a failure leaves the previous load
+untouched.
+
+Run from the project root:  python pipeline/load_bronze.py
+"""
+
+import logging
+import os
+import sys
+import time
+from pathlib import Path
+
+import psycopg2
+from dotenv import load_dotenv
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(levelname)s [%(filename)s:%(lineno)d] %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+load_dotenv()
+
+DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
+
+# File name prefix -> bronze table it lands in
+TARGET_TABLES = {
+    "employee_": "bronze.employee_raw",
+    "timesheet_": "bronze.timesheet_raw",
+}
+
+
+def get_connection():
+    return psycopg2.connect(
+        host=os.getenv("POSTGRES_HOST"),
+        port=os.getenv("POSTGRES_HOST_PORT"),
+        dbname=os.getenv("POSTGRES_DB"),
+        user=os.getenv("POSTGRES_USER"),
+        password=os.getenv("POSTGRES_PASSWORD"),
+    )
+
+
+def target_table_for(file_name: str) -> str:
+    for prefix, table in TARGET_TABLES.items():
+        if file_name.startswith(prefix):
+            return table
+    raise ValueError(f"No bronze table configured for file '{file_name}'")
+
+
+def read_header(file_obj) -> list:
+    """Column names from the first line, e.g. "a"|"b" -> ['a', 'b']."""
+    header = file_obj.readline().decode("utf-8").strip()
+    return [col.strip('"') for col in header.split("|")]
+
+
+def table_source_columns(conn, table: str) -> list:
+    """Columns of a bronze table, excluding the metadata columns we add."""
+    schema, name = table.split(".")
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT column_name FROM information_schema.columns
+            WHERE table_schema = %s AND table_name = %s
+              AND column_name NOT IN ('source_file', 'source_row_num', 'loaded_at')
+            ORDER BY ordinal_position
+            """,
+            (schema, name),
+        )
+        return [row[0] for row in cur.fetchall()]
+
+
+def load_file(conn, file_obj, file_name: str) -> int:
+    """Load one file (a binary file-like object) into its bronze table.
+    Returns the number of rows loaded."""
+    table = target_table_for(file_name)
+    columns = read_header(file_obj)
+
+    # Fail loudly if the source layout changed, instead of loading shifted columns.
+    # This also means only known column names ever reach the SQL below.
+    expected = table_source_columns(conn, table)
+    if columns != expected:
+        raise ValueError(
+            f"{file_name}: header does not match {table}. "
+            f"Unexpected: {sorted(set(columns) - set(expected))}, "
+            f"missing: {sorted(set(expected) - set(columns))}"
+        )
+    col_list = ", ".join(columns)
+
+    try:
+        with conn.cursor() as cur:
+            # Temp table: same columns as the file, all TEXT, plus a counter that
+            # numbers rows in the order COPY reads them (= order in the file).
+            col_defs = ", ".join(f"{c} TEXT" for c in columns)
+            cur.execute(f"""
+                CREATE TEMP TABLE stage_raw (
+                    row_num INTEGER GENERATED ALWAYS AS IDENTITY,
+                    {col_defs}
+                ) ON COMMIT DROP
+            """)
+
+            # Header line was already consumed by read_header(), so HEADER false.
+            # CSV mode handles quoted values that contain '|' or line breaks.
+            cur.copy_expert(
+                f"COPY stage_raw ({col_list}) FROM STDIN "
+                f"WITH (FORMAT csv, DELIMITER '|', QUOTE '\"', HEADER false, ENCODING 'UTF8')",
+                file_obj,
+            )
+
+            cur.execute(f"DELETE FROM {table} WHERE source_file = %s", (file_name,))
+            replaced = cur.rowcount
+
+            cur.execute(
+                f"""
+                INSERT INTO {table} ({col_list}, source_file, source_row_num)
+                SELECT {col_list}, %s, row_num FROM stage_raw
+                """,
+                (file_name,),
+            )
+            loaded = cur.rowcount
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception(f"Failed to load {file_name} into {table} — rolled back")
+        raise
+
+    logger.info(f"{file_name} -> {table}: {loaded:,} rows loaded ({replaced:,} previous rows replaced)")
+    return loaded
+
+
+def main():
+    files = sorted(DATA_DIR.glob("*.csv"))
+    if not files:
+        logger.error(f"No CSV files found in {DATA_DIR.resolve()}")
+        sys.exit(1)
+
+    logger.info(f"Loading {len(files)} file(s) from {DATA_DIR.resolve()}")
+    conn = get_connection()
+    try:
+        for path in files:
+            start = time.time()
+            with open(path, "rb") as f:
+                load_file(conn, f, path.name)
+            logger.info(f"  took {time.time() - start:.1f}s")
+    finally:
+        conn.close()
+    logger.info("Bronze load finished")
+
+
+if __name__ == "__main__":
+    main()

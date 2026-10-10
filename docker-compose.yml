@@ -40,6 +40,31 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # One-off job that plays the source system: creates the landing bucket and
+  # drops the raw extracts into it, then exits. Safe to rerun.
+  minio-init:
+    image: pgsty/mc:RELEASE.2026-09-16T00-00-00Z
+    container_name: hr_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+    volumes:
+      - ./data:/source:ro
+    # $$ so the container's shell expands the variables, not docker compose
+    entrypoint: >
+      sh -c "
+      set -e;
+      mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD;
+      mc mb --ignore-existing local/$$MINIO_BUCKET;
+      mc cp /source/*.csv local/$$MINIO_BUCKET/;
+      mc ls local/$$MINIO_BUCKET
+      "
+    restart: "no"
+
 volumes:
   warehouse_data:
   minio_data:

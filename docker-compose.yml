@@ -1,3 +1,28 @@
+# Settings shared by every Airflow container (merged in with <<: *airflow-common)
+x-airflow-common: &airflow-common
+  image: apache/airflow:3.3.0
+  environment: &airflow-common-env
+    # Runs tasks as processes on this machine; no Redis/worker containers needed
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    # FAB gives a normal username/password login created by airflow-init
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@airflow-db/airflow
+    # Encrypts connection passwords stored in the metadata DB
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    # All components must share one secret or task runs fail to authenticate
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET}
+    # Where running tasks report their state back to (Airflow 3 task API)
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+  volumes:
+    - ./dags:/opt/airflow/dags
+    # Shared so the UI can show logs written by tasks in the scheduler container
+    - airflow_logs:/opt/airflow/logs
+  depends_on: &airflow-common-depends-on
+    airflow-db:
+      condition: service_healthy
+
 services:
   warehouse-db:
     image: postgres:16
@@ -65,6 +90,81 @@ services:
       "
     restart: "no"
 
+  # Airflow's own bookkeeping (runs, task states, users), kept apart from the
+  # warehouse so rebuilding one never touches the other. Not exposed to the host.
+  airflow-db:
+    image: postgres:16
+    container_name: hr_airflow_db
+    environment:
+      POSTGRES_USER: ${AIRFLOW_DB_USER}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD}
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # One-off job: the image entrypoint migrates the metadata DB and creates the
+  # admin user when these flags are set, then runs `airflow version` and exits.
+  airflow-init:
+    <<: *airflow-common
+    container_name: hr_airflow_init
+    command: version
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USER}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
+    restart: "no"
+
+  # Web UI + REST API (http://localhost:8080)
+  airflow-apiserver:
+    <<: *airflow-common
+    container_name: hr_airflow_apiserver
+    command: api-server
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # Decides what is due and runs the tasks (LocalExecutor)
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: hr_airflow_scheduler
+    command: scheduler
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # Parses the files in dags/ (separate from the scheduler since Airflow 3)
+  airflow-dag-processor:
+    <<: *airflow-common
+    container_name: hr_airflow_dag_processor
+    command: dag-processor
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
 volumes:
   warehouse_data:
   minio_data:
+  airflow_db_data:
+  airflow_logs:

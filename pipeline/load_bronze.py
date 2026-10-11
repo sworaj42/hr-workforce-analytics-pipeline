@@ -1,7 +1,8 @@
 """
-Land raw source files in the bronze layer.
+Land raw source files from the MinIO landing bucket in the bronze layer.
 
-For each file: COPY it into a temp table, delete any rows previously loaded
+Each object is streamed from MinIO straight into Postgres; nothing is written
+to local disk. For each file: COPY it into a temp table, delete any rows previously loaded
 from the same file, and insert the new rows with lineage metadata
 (source_file, source_row_num). All of that happens in one transaction per
 file, so a rerun never duplicates rows and a failure leaves the previous load
@@ -14,10 +15,10 @@ import logging
 import os
 import sys
 import time
-from pathlib import Path
 
 import psycopg2
 from dotenv import load_dotenv
+from minio import Minio
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
+BUCKET = os.getenv("MINIO_BUCKET")
 
 # File name prefix -> bronze table it lands in
 TARGET_TABLES = {
@@ -43,6 +44,15 @@ def get_connection():
         dbname=os.getenv("POSTGRES_DB"),
         user=os.getenv("POSTGRES_USER"),
         password=os.getenv("POSTGRES_PASSWORD"),
+    )
+
+
+def get_minio_client() -> Minio:
+    return Minio(
+        os.getenv("MINIO_ENDPOINT"),
+        access_key=os.getenv("MINIO_ROOT_USER"),
+        secret_key=os.getenv("MINIO_ROOT_PASSWORD"),
+        secure=False,  # local MinIO serves plain HTTP
     )
 
 
@@ -134,18 +144,29 @@ def load_file(conn, file_obj, file_name: str) -> int:
 
 
 def main():
-    files = sorted(DATA_DIR.glob("*.csv"))
-    if not files:
-        logger.error(f"No CSV files found in {DATA_DIR.resolve()}")
+    client = get_minio_client()
+    names = sorted(
+        obj.object_name
+        for obj in client.list_objects(BUCKET)
+        if obj.object_name.endswith(".csv")
+    )
+    if not names:
+        logger.error(f"No CSV files found in bucket '{BUCKET}'")
         sys.exit(1)
 
-    logger.info(f"Loading {len(files)} file(s) from {DATA_DIR.resolve()}")
+    logger.info(f"Loading {len(names)} file(s) from bucket '{BUCKET}'")
     conn = get_connection()
     try:
-        for path in files:
+        for name in names:
             start = time.time()
-            with open(path, "rb") as f:
-                load_file(conn, f, path.name)
+            # get_object returns a streaming HTTP response; COPY reads from it
+            # in chunks, so the file is never held in memory as a whole.
+            response = client.get_object(BUCKET, name)
+            try:
+                load_file(conn, response, name)
+            finally:
+                response.close()
+                response.release_conn()
             logger.info(f"  took {time.time() - start:.1f}s")
     finally:
         conn.close()

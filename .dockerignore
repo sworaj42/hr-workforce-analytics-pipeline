@@ -1,0 +1,4 @@
+# Allowlist: send only what the image needs to the Docker build, so data/,
+# .venv/ and .env never end up in the build context or the image.
+*
+!requirements.txt

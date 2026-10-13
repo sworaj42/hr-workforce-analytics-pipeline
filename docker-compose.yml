@@ -1,6 +1,9 @@
 # Settings shared by every Airflow container (merged in with <<: *airflow-common)
 x-airflow-common: &airflow-common
-  image: apache/airflow:3.3.0
+  # Stock Airflow image + our pinned requirements (see Dockerfile)
+  build: .
+  # One tag shared by all Airflow services, so the image is built once
+  image: hr-airflow:3.3.0
   environment: &airflow-common-env
     # Runs tasks as processes on this machine; no Redis/worker containers needed
     AIRFLOW__CORE__EXECUTOR: LocalExecutor

@@ -9,21 +9,17 @@ file, so a rerun never duplicates rows and a failure leaves the previous load
 untouched.
 
 Run from the project root:  python pipeline/load_bronze.py
+In Airflow: dags/bronze.py calls load_all_files().
 """
 
 import logging
 import os
-import sys
 import time
 
 import psycopg2
 from dotenv import load_dotenv
 from minio import Minio
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)s [%(filename)s:%(lineno)d] %(message)s",
-)
 logger = logging.getLogger(__name__)
 
 load_dotenv()
@@ -143,7 +139,8 @@ def load_file(conn, file_obj, file_name: str) -> int:
     return loaded
 
 
-def main():
+def load_all_files():
+    """Load every CSV in the landing bucket into bronze, one transaction per file."""
     client = get_minio_client()
     names = sorted(
         obj.object_name
@@ -151,8 +148,7 @@ def main():
         if obj.object_name.endswith(".csv")
     )
     if not names:
-        logger.error(f"No CSV files found in bucket '{BUCKET}'")
-        sys.exit(1)
+        raise FileNotFoundError(f"No CSV files found in bucket '{BUCKET}'")
 
     logger.info(f"Loading {len(names)} file(s) from bucket '{BUCKET}'")
     conn = get_connection()
@@ -174,4 +170,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # Logging is configured only when run as a script; under Airflow the task
+    # runner sets up logging and this module's logger feeds into it.
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s  %(levelname)s [%(filename)s:%(lineno)d] %(message)s",
+    )
+    load_all_files()

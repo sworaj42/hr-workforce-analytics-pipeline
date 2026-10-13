@@ -18,8 +18,22 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    # Lets DAGs import our code as the `pipeline` package
+    PYTHONPATH: /opt/airflow
+    # Settings read by pipeline/, using service names on the Docker network
+    # instead of the localhost ports used from the host machine
+    POSTGRES_HOST: warehouse-db
+    POSTGRES_PORT: 5432
+    POSTGRES_DB: ${POSTGRES_DB}
+    POSTGRES_USER: ${POSTGRES_USER}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    MINIO_ENDPOINT: minio:9000
+    MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+    MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    MINIO_BUCKET: ${MINIO_BUCKET}
   volumes:
     - ./dags:/opt/airflow/dags
+    - ./pipeline:/opt/airflow/pipeline
     # Shared so the UI can show logs written by tasks in the scheduler container
     - airflow_logs:/opt/airflow/logs
   depends_on: &airflow-common-depends-on

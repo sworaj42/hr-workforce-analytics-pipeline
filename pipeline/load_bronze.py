@@ -8,7 +8,7 @@ from the same file, and insert the new rows with lineage metadata
 file, so a rerun never duplicates rows and a failure leaves the previous load
 untouched.
 
-Run from the project root:  python pipeline/load_bronze.py
+Run from the project root:  python -m pipeline.load_bronze
 In Airflow: dags/bronze.py calls load_all_files().
 """
 
@@ -16,9 +16,10 @@ import logging
 import os
 import time
 
-import psycopg2
 from dotenv import load_dotenv
 from minio import Minio
+
+from pipeline.db import get_connection
 
 logger = logging.getLogger(__name__)
 
@@ -31,16 +32,6 @@ TARGET_TABLES = {
     "employee_": "bronze.employee_raw",
     "timesheet_": "bronze.timesheet_raw",
 }
-
-
-def get_connection():
-    return psycopg2.connect(
-        host=os.getenv("POSTGRES_HOST"),
-        port=os.getenv("POSTGRES_PORT"),
-        dbname=os.getenv("POSTGRES_DB"),
-        user=os.getenv("POSTGRES_USER"),
-        password=os.getenv("POSTGRES_PASSWORD"),
-    )
 
 
 def get_minio_client() -> Minio:

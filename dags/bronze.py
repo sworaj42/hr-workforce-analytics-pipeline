@@ -2,7 +2,7 @@
 Bronze layer: land every raw file from the MinIO landing bucket in Postgres.
 
 The DAG only orchestrates; the loading logic lives in pipeline/load_bronze.py
-and can be run without Airflow (python pipeline/load_bronze.py).
+and can be run without Airflow (python -m pipeline.load_bronze).
 """
 
 from datetime import datetime, timedelta

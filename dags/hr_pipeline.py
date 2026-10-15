@@ -32,14 +32,23 @@ def hr_pipeline():
 
         load_all_files()
 
+    # The module is imported rather than the function, because the task and
+    # the pipeline function share a name.
     @task
-    def build_silver():
-        from pipeline.build_silver import build_silver_timesheet
+    def build_silver_timesheet():
+        from pipeline import build_silver
 
-        build_silver_timesheet()
+        build_silver.build_silver_timesheet()
 
-    # Silver reads from bronze, so it runs only after the bronze load succeeds.
-    load_bronze() >> build_silver()
+    @task
+    def build_silver_employee():
+        from pipeline import build_silver
+
+        build_silver.build_silver_employee()
+
+    # Both silver tables read only from bronze and not from each other, so
+    # they wait for the bronze load and then run in parallel.
+    load_bronze() >> [build_silver_timesheet(), build_silver_employee()]
 
 
 hr_pipeline()

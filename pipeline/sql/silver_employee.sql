@@ -64,10 +64,20 @@ FROM (
         silver.clean_text(active_status)::BOOLEAN                AS active_status,  -- '1'/'0' -> true/false
         silver.clean_text(termination_reason)                    AS termination_reason,
         silver.clean_text(clinical_level)                        AS clinical_level,
-        -- Per diem = job title ends in '- PD' (see the column comment in the
-        -- migration). No title -> NULL LIKE ... is NULL, so COALESCE to false
-        -- to satisfy NOT NULL.
-        COALESCE(silver.clean_text(job_title) LIKE '%- PD', false) AS is_per_diem,
+        -- Per diem: the source flag wins when it holds a recognized value;
+        -- otherwise fall back to the job title ending in '- PD' (an assumption
+        -- accepted by the data provider, see docs/assumptions.md). The last
+        -- false covers a missing title, since the column is NOT NULL.
+        -- Unrecognized source values silently fall back here; Step 2's
+        -- cleaning log counts them, so the fallback never hides bad source data.
+        COALESCE(
+            CASE
+                WHEN lower(silver.clean_text(is_per_deim)) IN ('1', 'true', 'y')  THEN true
+                WHEN lower(silver.clean_text(is_per_deim)) IN ('0', 'false', 'n') THEN false
+            END,
+            silver.clean_text(job_title) LIKE '%- PD',
+            false
+        )                                                        AS is_per_diem,
         source_file,
         source_row_num
     FROM bronze.employee_raw

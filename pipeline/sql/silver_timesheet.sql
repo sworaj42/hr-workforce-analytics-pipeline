@@ -1,12 +1,9 @@
--- Rebuild silver.timesheet and silver.timesheet_rejects from bronze (full refresh).
--- Runs in one transaction with the caller, so a failure keeps the previous data.
+-- Rebuild silver.timesheet and its rejects from bronze (full refresh, one transaction).
 
 TRUNCATE silver.timesheet, silver.timesheet_rejects;
 
--- Bronze rows as they are, plus the first rule each row fails (NULL = valid).
--- pg_input_is_valid(NULL, ...) is NULL, so a missing optional value passes.
--- Casts are checked first, so the comparison rule only sees valid values.
-CREATE TEMP TABLE checked ON COMMIT DROP AS
+-- Raw bronze rows plus the first rule each fails (NULL = valid; missing optional values pass).
+CREATE TEMP TABLE checked_timesheet ON COMMIT DROP AS
 SELECT
     client_employee_id, department_id, department_name,
     home_department_id, home_department_name, pay_code,
@@ -53,7 +50,7 @@ SELECT
     punch_in_datetime, punch_out_datetime,
     scheduled_start_datetime, scheduled_end_datetime,
     reject_reason, source_file, source_row_num
-FROM checked
+FROM checked_timesheet
 WHERE reject_reason IS NOT NULL;
 
 INSERT INTO silver.timesheet (
@@ -64,8 +61,7 @@ INSERT INTO silver.timesheet (
     scheduled_start_datetime, scheduled_end_datetime,
     source_file, source_row_num
 )
--- DISTINCT ON keeps the first row of each (employee, punch-in) group in
--- ORDER BY order, i.e. the copy from the latest extract.
+-- One row per (employee, punch-in): the copy from the latest extract.
 SELECT DISTINCT ON (client_employee_id, punch_in_datetime) *
 FROM (
     SELECT
@@ -85,10 +81,8 @@ FROM (
         silver.clean_text(scheduled_end_datetime)::TIMESTAMP    AS scheduled_end_datetime,
         source_file,
         source_row_num
-    FROM checked
+    FROM checked_timesheet
     WHERE reject_reason IS NULL
 ) AS cleaned
--- "Latest extract wins" relies on the file names sorting by extraction time:
--- they all follow timesheet_YYYYMMDDHHMM.csv, so source_file DESC = newest
--- first. A file named any other way would silently break this ordering.
+-- Newest file first: names sort by extraction time (timesheet_YYYYMMDDHHMM.csv).
 ORDER BY client_employee_id, punch_in_datetime, source_file DESC;

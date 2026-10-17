@@ -29,8 +29,7 @@ def rebuild_silver_table(sql_file: str, bronze_table: str, silver_table: str) ->
     sql = (SQL_DIR / sql_file).read_text(encoding="utf-8")
     conn = get_connection()
     try:
-        # `with conn` commits on success and rolls back on any error, so
-        # TRUNCATE + both INSERTs are applied together or not at all.
+        # Commits on success, rolls back on any error.
         with conn, conn.cursor() as cur:
             read = count_rows(cur, bronze_table)
             cur.execute(sql)

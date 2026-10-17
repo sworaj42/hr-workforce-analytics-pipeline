@@ -1,12 +1,9 @@
--- Rebuild silver.employee and silver.employee_rejects from bronze (full refresh).
--- Runs in one transaction with the caller, so a failure keeps the previous data.
+-- Rebuild silver.employee and its rejects from bronze (full refresh, one transaction).
 
 TRUNCATE silver.employee, silver.employee_rejects;
 
--- Bronze rows as they are, plus the first rule each row fails (NULL = valid).
--- pg_input_is_valid(NULL, ...) is NULL, so a missing optional value passes.
--- Casts are checked first, so the comparison rule only sees valid values.
-CREATE TEMP TABLE checked ON COMMIT DROP AS
+-- Raw bronze rows plus the first rule each fails (NULL = valid; missing optional values pass).
+CREATE TEMP TABLE checked_employee ON COMMIT DROP AS
 SELECT
     client_employee_id, first_name, last_name, job_code, job_title,
     job_start_date, organization_name, department_id, department_name,
@@ -48,7 +45,7 @@ SELECT
     manager_employee_id, fte_status, scheduled_weekly_hour, hire_date,
     recent_hire_date, anniversary_date, term_date, active_status,
     termination_reason, reject_reason, source_file, source_row_num
-FROM checked
+FROM checked_employee
 WHERE reject_reason IS NOT NULL;
 
 INSERT INTO silver.employee (
@@ -58,9 +55,7 @@ INSERT INTO silver.employee (
     recent_hire_date, anniversary_date, term_date, active_status,
     termination_reason, is_per_diem, source_file, source_row_num
 )
--- DISTINCT ON keeps one row per employee: the copy from the latest extract.
--- With a single employee file it removes nothing, but without it a second
--- extract in bronze would break the primary key.
+-- One row per employee: the copy from the latest extract.
 SELECT DISTINCT ON (client_employee_id) *
 FROM (
     SELECT
@@ -72,11 +67,7 @@ FROM (
         silver.clean_text(job_start_date)::DATE                  AS job_start_date,
         silver.clean_text(organization_name)                     AS organization_name,
         silver.clean_text(department_id)                         AS department_id,
-        -- Strip the exact '<department_id>-' prefix ('72800-CT Scan' -> 'CT Scan').
-        -- Cut by the ID's length rather than at the first hyphen, because some
-        -- IDs contain one ('8000-13204-RCM Registration' -> 'RCM Registration').
-        -- left() instead of LIKE so '%' or '_' in an ID can't act as wildcards;
-        -- a name without the prefix is kept as it is.
+        -- Strip the exact '<department_id>-' prefix; some IDs contain a hyphen.
         CASE
             WHEN left(silver.clean_text(department_name), length(silver.clean_text(department_id)) + 1)
                  = silver.clean_text(department_id) || '-'
@@ -92,14 +83,12 @@ FROM (
         silver.clean_text(term_date)::DATE                       AS term_date,
         silver.clean_text(active_status)::BOOLEAN                AS active_status,  -- '1'/'0' -> true/false
         silver.clean_text(termination_reason)                    AS termination_reason,
-        -- Per diem: job title ends in '- PD' (assumption, see docs/assumptions.md).
-        -- false when the title is missing, since the column is NOT NULL.
+        -- Assumption: title ending in '- PD' means per diem; false if no title.
         COALESCE(silver.clean_text(job_title) LIKE '%- PD', false) AS is_per_diem,
         source_file,
         source_row_num
-    FROM checked
+    FROM checked_employee
     WHERE reject_reason IS NULL
 ) AS cleaned
--- "Latest extract wins" relies on the file names sorting by extraction time
--- (employee_YYYYMMDDHHMM.csv), so source_file DESC = newest first.
+-- Newest file first: names sort by extraction time (employee_YYYYMMDDHHMM.csv).
 ORDER BY client_employee_id, source_file DESC;

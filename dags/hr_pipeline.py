@@ -1,4 +1,4 @@
-"""HR pipeline: load raw files into bronze, then build silver (logic lives in pipeline/)."""
+"""HR pipeline: bronze -> silver -> gold (logic lives in pipeline/)."""
 
 from datetime import datetime, timedelta
 
@@ -10,12 +10,12 @@ from airflow.sdk import Param, dag, task
     start_date=datetime(2026, 1, 1),
     catchup=False,
     max_active_runs=1,  # runs rebuild shared tables, so they must not overlap
-    tags=["bronze", "silver"],
+    tags=["bronze", "silver", "gold"],
     params={
         "full_reload": Param(
             False,
             type="boolean",
-            description="Truncate-reload silver.timesheet instead of the default incremental load",
+            description="Truncate-reload the timesheet tables instead of the default incremental load",
         ),
     },
     default_args={
@@ -45,8 +45,14 @@ def hr_pipeline():
 
         build_silver.build_silver_employee(context["run_id"])
 
-    # Both silver tables read only from bronze, so they run in parallel.
-    load_bronze() >> [build_silver_timesheet(), build_silver_employee()]
+    @task
+    def build_gold(**context):
+        from pipeline import build_gold
+
+        build_gold.build_gold(context["params"]["full_reload"])
+
+    # Both silver tables read only from bronze, so they run in parallel; gold needs both.
+    load_bronze() >> [build_silver_timesheet(), build_silver_employee()] >> build_gold()
 
 
 hr_pipeline()

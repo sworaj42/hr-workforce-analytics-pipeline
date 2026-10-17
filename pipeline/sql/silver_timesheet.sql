@@ -67,7 +67,14 @@ FROM (
     SELECT
         silver.clean_text(client_employee_id)                   AS client_employee_id,
         silver.clean_text(department_id)                        AS department_id,
-        silver.clean_text(department_name)                      AS department_name,
+        -- A name that is just the ID, or its part after the last hyphen, is a placeholder.
+        CASE
+            WHEN silver.clean_text(department_name) IN (
+                     silver.clean_text(department_id),
+                     regexp_replace(silver.clean_text(department_id), '^.*-', ''))
+            THEN NULL
+            ELSE silver.clean_text(department_name)
+        END                                                     AS department_name,
         silver.clean_text(home_department_id)                   AS home_department_id,
         silver.clean_text(home_department_name)                 AS home_department_name,
         silver.clean_text(pay_code)                             AS pay_code,

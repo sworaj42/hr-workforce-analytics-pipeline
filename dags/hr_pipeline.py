@@ -1,9 +1,4 @@
-"""
-HR pipeline: land raw files in bronze, then build the cleaned silver layer.
-
-The DAG only orchestrates; the logic lives in pipeline/ and can also be run
-without Airflow (python -m pipeline.load_bronze / python -m pipeline.build_silver).
-"""
+"""HR pipeline: load raw files into bronze, then build silver (logic lives in pipeline/)."""
 
 from datetime import datetime, timedelta
 
@@ -11,14 +6,13 @@ from airflow.sdk import dag, task
 
 
 @dag(
-    schedule=None,  # manual trigger for now; scheduling is decided with the incremental load
+    schedule=None,  # manual trigger for now
     start_date=datetime(2026, 1, 1),
     catchup=False,
+    max_active_runs=1,  # runs rebuild shared tables, so they must not overlap
     tags=["bronze", "silver"],
     default_args={
-        # Safe to retry: bronze reloads each file with delete-then-insert, and
-        # silver is rebuilt with TRUNCATE + INSERT in one transaction, so a
-        # rerun never duplicates rows.
+        # Safe to retry: every step replaces its data, so a rerun never duplicates rows.
         "retries": 2,
         "retry_delay": timedelta(minutes=1),
     },
@@ -26,15 +20,12 @@ from airflow.sdk import dag, task
 def hr_pipeline():
     @task
     def load_bronze():
-        # Imported inside the task so the DAG processor, which re-parses this
-        # file every few seconds, does not import database/MinIO libraries.
+        # Imported here so DAG parsing stays light.
         from pipeline.load_bronze import load_all_files
 
         load_all_files()
 
-    # The module is imported rather than the function, because the task and
-    # the pipeline function share a name.
-    # run_id is filled in by Airflow from the task context.
+    # Module import because the task and the function share a name; Airflow fills in run_id.
     @task
     def build_silver_timesheet(run_id=None):
         from pipeline import build_silver
@@ -47,8 +38,7 @@ def hr_pipeline():
 
         build_silver.build_silver_employee(run_id)
 
-    # Both silver tables read only from bronze and not from each other, so
-    # they wait for the bronze load and then run in parallel.
+    # Both silver tables read only from bronze, so they run in parallel.
     load_bronze() >> [build_silver_timesheet(), build_silver_employee()]
 
 

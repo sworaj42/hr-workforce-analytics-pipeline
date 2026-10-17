@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS silver.timesheet (
     punch_out_datetime        TIMESTAMP,
     scheduled_start_datetime  TIMESTAMP,
     scheduled_end_datetime    TIMESTAMP,
+    extracted_at              TIMESTAMP     NOT NULL,  -- file export time, from source_file
+    has_schedule              BOOLEAN       NOT NULL,  -- scheduled start and end both present
+    is_incomplete             BOOLEAN       NOT NULL,  -- shift not finished at export time
     source_file               TEXT          NOT NULL,
     source_row_num            INTEGER       NOT NULL,
     loaded_at                 TIMESTAMPTZ   NOT NULL DEFAULT now(),

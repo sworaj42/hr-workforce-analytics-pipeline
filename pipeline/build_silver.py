@@ -82,14 +82,18 @@ def build_silver_timesheet(run_id: str | None = None) -> int:
         "silver_timesheet.sql", "bronze.timesheet_raw", "silver.timesheet", run_id or manual_run_id()
     )
     # Compare each silver row with its bronze row (joined by lineage).
-    nulled, over_24 = fetch_counts(
+    nulled, over_24, scheduled, incomplete = fetch_counts(
         """SELECT count(*) FROM silver.timesheet s
            JOIN bronze.timesheet_raw b USING (source_file, source_row_num)
            WHERE s.department_name IS NULL
              AND silver.clean_text(b.department_name) IS NOT NULL""",
         "SELECT count(*) FROM silver.timesheet WHERE hours_worked > 24",
+        "SELECT count(*) FROM silver.timesheet WHERE has_schedule",
+        "SELECT count(*) FROM silver.timesheet WHERE is_incomplete",
     )
     logger.info(f"silver.timesheet: {nulled:,} department placeholder names set to NULL")
+    logger.info(f"silver.timesheet: {scheduled:,} rows with a schedule ({scheduled / loaded:.1%})")
+    logger.info(f"silver.timesheet: {incomplete:,} incomplete rows (punch-out after export)")
     if over_24:
         logger.warning(f"silver.timesheet: {over_24:,} rows with hours_worked > 24 (kept)")
     return loaded

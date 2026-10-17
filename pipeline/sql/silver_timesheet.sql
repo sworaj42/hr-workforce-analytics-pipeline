@@ -59,10 +59,16 @@ INSERT INTO silver.timesheet (
     punch_in_comment, punch_out_comment, hours_worked, punch_apply_date,
     punch_in_datetime, punch_out_datetime,
     scheduled_start_datetime, scheduled_end_datetime,
-    source_file, source_row_num
+    source_file, source_row_num,
+    extracted_at, has_schedule, is_incomplete
 )
 -- One row per (employee, punch-in): the copy from the latest extract.
-SELECT DISTINCT ON (client_employee_id, punch_in_datetime) *
+SELECT DISTINCT ON (client_employee_id, punch_in_datetime)
+    *,
+    -- Both schedule times present.
+    scheduled_start_datetime IS NOT NULL AND scheduled_end_datetime IS NOT NULL  AS has_schedule,
+    -- Shift still open at export time (no punch-out, or punch-out after the export).
+    punch_out_datetime IS NULL OR punch_out_datetime > extracted_at              AS is_incomplete
 FROM (
     SELECT
         silver.clean_text(client_employee_id)                   AS client_employee_id,
@@ -87,7 +93,10 @@ FROM (
         silver.clean_text(scheduled_start_datetime)::TIMESTAMP  AS scheduled_start_datetime,
         silver.clean_text(scheduled_end_datetime)::TIMESTAMP    AS scheduled_end_datetime,
         source_file,
-        source_row_num
+        source_row_num,
+        -- Export time from the file name: timesheet_YYYYMMDDHHMM.csv.
+        to_timestamp(substring(source_file FROM '_([0-9]{12})\.csv$'), 'YYYYMMDDHH24MI')::TIMESTAMP
+                                                                AS extracted_at
     FROM checked_timesheet
     WHERE reject_reason IS NULL
 ) AS cleaned

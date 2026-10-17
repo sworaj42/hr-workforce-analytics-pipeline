@@ -34,17 +34,18 @@ def hr_pipeline():
 
     # The module is imported rather than the function, because the task and
     # the pipeline function share a name.
+    # run_id is filled in by Airflow from the task context.
     @task
-    def build_silver_timesheet():
+    def build_silver_timesheet(run_id=None):
         from pipeline import build_silver
 
-        build_silver.build_silver_timesheet()
+        build_silver.build_silver_timesheet(run_id)
 
     @task
-    def build_silver_employee():
+    def build_silver_employee(run_id=None):
         from pipeline import build_silver
 
-        build_silver.build_silver_employee()
+        build_silver.build_silver_employee(run_id)
 
     # Both silver tables read only from bronze and not from each other, so
     # they wait for the bronze load and then run in parallel.

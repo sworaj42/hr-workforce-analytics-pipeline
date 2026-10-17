@@ -104,3 +104,15 @@ CREATE TABLE IF NOT EXISTS silver.employee_rejects (
     source_row_num            INTEGER       NOT NULL,
     rejected_at               TIMESTAMPTZ   NOT NULL DEFAULT now()
 );
+
+-- One row per silver table per successful build.
+CREATE TABLE IF NOT EXISTS silver.cleaning_log (
+    run_id                    TEXT          NOT NULL,  -- Airflow run_id, or manual__<time>
+    table_name                TEXT          NOT NULL,  -- e.g. silver.timesheet
+    load_mode                 TEXT          NOT NULL,  -- 'full' (incremental comes later)
+    rows_read                 INTEGER       NOT NULL,
+    rows_rejected             INTEGER       NOT NULL,
+    rows_duplicate            INTEGER       NOT NULL,
+    rows_loaded               INTEGER       NOT NULL,
+    logged_at                 TIMESTAMPTZ   NOT NULL DEFAULT now()
+);

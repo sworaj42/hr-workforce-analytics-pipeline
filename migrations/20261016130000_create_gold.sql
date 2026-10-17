@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS gold.dim_employee (
 );
 
 -- One row per punch, same grain as silver.timesheet.
--- The natural key (employee, punch-in) identifies each punch and is what incremental loads match on, so there is no surrogate key.
+-- The natural key (employee, punch-in) identifies each punch, so there is no surrogate key.
 CREATE TABLE IF NOT EXISTS gold.fact_timesheet (
     employee_key              INTEGER       NOT NULL REFERENCES gold.dim_employee (employee_key),
     date_key                  INTEGER       NOT NULL REFERENCES gold.dim_date (date_key),
@@ -70,7 +70,6 @@ CREATE TABLE IF NOT EXISTS gold.fact_timesheet (
     punch_out_datetime        TIMESTAMP,
     scheduled_start_datetime  TIMESTAMP,
     scheduled_end_datetime    TIMESTAMP,
-    extracted_at              TIMESTAMP     NOT NULL,  -- from silver
     has_schedule              BOOLEAN       NOT NULL,  -- from silver
     is_incomplete             BOOLEAN       NOT NULL,  -- from silver
     source_file               TEXT          NOT NULL,

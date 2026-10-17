@@ -1,6 +1,10 @@
--- Rebuild silver.timesheet and its rejects from bronze (full refresh, one transaction).
+-- Reload silver.timesheet from window_start onward (all rows when NULL) and refresh its rejects.
+-- Runs with a window_start parameter, so a literal percent sign must be written as %%.
 
-TRUNCATE silver.timesheet, silver.timesheet_rejects;
+TRUNCATE silver.timesheet_rejects;
+
+-- Full loads truncate the table first and pass NULL, which deletes nothing here.
+DELETE FROM silver.timesheet WHERE punch_apply_date >= %(window_start)s;
 
 -- Raw bronze rows plus the first rule each fails (NULL = valid; missing optional values pass).
 CREATE TEMP TABLE checked_timesheet ON COMMIT DROP AS
@@ -11,6 +15,9 @@ SELECT
     punch_in_datetime, punch_out_datetime,
     scheduled_start_datetime, scheduled_end_datetime,
     source_file, source_row_num,
+    -- Parsed date for the window filter; NULL when invalid.
+    CASE WHEN pg_input_is_valid(silver.clean_text(punch_apply_date), 'date')
+         THEN silver.clean_text(punch_apply_date)::DATE END AS apply_date,
     CASE
         WHEN silver.clean_text(client_employee_id) IS NULL
             THEN 'missing client_employee_id'
@@ -99,6 +106,7 @@ FROM (
                                                                 AS extracted_at
     FROM checked_timesheet
     WHERE reject_reason IS NULL
+      AND (%(window_start)s::DATE IS NULL OR apply_date >= %(window_start)s)
 ) AS cleaned
 -- Newest file first: names sort by extraction time (timesheet_YYYYMMDDHHMM.csv).
 ORDER BY client_employee_id, punch_in_datetime, source_file DESC;

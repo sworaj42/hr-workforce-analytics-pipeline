@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta
 
-from airflow.sdk import dag, task
+from airflow.sdk import Param, dag, task
 
 
 @dag(
@@ -11,6 +11,13 @@ from airflow.sdk import dag, task
     catchup=False,
     max_active_runs=1,  # runs rebuild shared tables, so they must not overlap
     tags=["bronze", "silver"],
+    params={
+        "full_reload": Param(
+            False,
+            type="boolean",
+            description="Truncate-reload silver.timesheet instead of the default incremental load",
+        ),
+    },
     default_args={
         # Safe to retry: every step replaces its data, so a rerun never duplicates rows.
         "retries": 2,
@@ -25,18 +32,18 @@ def hr_pipeline():
 
         load_all_files()
 
-    # Module import because the task and the function share a name; Airflow fills in run_id.
+    # Module import because the task and the function share a name.
     @task
-    def build_silver_timesheet(run_id=None):
+    def build_silver_timesheet(**context):
         from pipeline import build_silver
 
-        build_silver.build_silver_timesheet(run_id)
+        build_silver.build_silver_timesheet(context["run_id"], context["params"]["full_reload"])
 
     @task
-    def build_silver_employee(run_id=None):
+    def build_silver_employee(**context):
         from pipeline import build_silver
 
-        build_silver.build_silver_employee(run_id)
+        build_silver.build_silver_employee(context["run_id"])
 
     # Both silver tables read only from bronze, so they run in parallel.
     load_bronze() >> [build_silver_timesheet(), build_silver_employee()]

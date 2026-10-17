@@ -112,9 +112,11 @@ CREATE TABLE IF NOT EXISTS silver.employee_rejects (
 CREATE TABLE IF NOT EXISTS silver.cleaning_log (
     run_id                    TEXT          NOT NULL,  -- Airflow run_id, or manual__<time>
     table_name                TEXT          NOT NULL,  -- e.g. silver.timesheet
-    load_mode                 TEXT          NOT NULL,  -- 'full' (incremental comes later)
+    load_mode                 TEXT          NOT NULL,  -- 'full' or 'incremental'
+    window_start              DATE,                    -- NULL for full loads
     rows_read                 INTEGER       NOT NULL,
     rows_rejected             INTEGER       NOT NULL,
+    rows_outside_window       INTEGER       NOT NULL,  -- valid rows dated before window_start
     rows_duplicate            INTEGER       NOT NULL,
     rows_loaded               INTEGER       NOT NULL,
     logged_at                 TIMESTAMPTZ   NOT NULL DEFAULT now()

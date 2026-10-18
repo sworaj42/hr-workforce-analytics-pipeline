@@ -31,3 +31,16 @@ in the source data.
 - For the 44 active employees it falls on the same month and day as
   `recent_hire_date`, but the latest one is in 2022, so it is not kept current.
 - Not used in analysis.
+
+### Worked time (`is_worked` on `gold.fact_timesheet`)
+- Worked = clocked shift time.
+- Rows starting at exactly 00:00 are booked entries (time off, meetings,
+  training, pay premiums), except the four regular shift codes (`Hourly`,
+  `Exempt`, `normal_worked`, `Per Diem`), so real shifts starting at midnight
+  still count.
+- Evidence: all 40,974 leave-code rows start at 00:00; only 5 midnight rows
+  have a schedule; 54 midnight rows carry a regular shift code and are kept as
+  worked.
+- Verified on the old system only; new-system extracts contain no time-off
+  rows. A shift under another code starting exactly at midnight would be
+  treated as a booking.

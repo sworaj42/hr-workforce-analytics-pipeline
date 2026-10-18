@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS gold.fact_timesheet (
     scheduled_end_datetime    TIMESTAMP,
     has_schedule              BOOLEAN       NOT NULL,  -- from silver
     is_incomplete             BOOLEAN       NOT NULL,  -- from silver
+    is_worked                 BOOLEAN       NOT NULL,  -- clocked shift time; midnight bookings excluded
     source_file               TEXT          NOT NULL,
     source_row_num            INTEGER       NOT NULL,
     loaded_at                 TIMESTAMPTZ   NOT NULL DEFAULT now(),

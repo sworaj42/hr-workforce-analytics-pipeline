@@ -175,7 +175,7 @@ def load_fact_timesheet(conn, full_reload=False):
         client_employee_id, pay_code, punch_in_comment, punch_out_comment,
         hours_worked, punch_apply_date, punch_in_datetime, punch_out_datetime,
         scheduled_start_datetime, scheduled_end_datetime,
-        has_schedule, is_incomplete, source_file, source_row_num
+        has_schedule, is_incomplete, is_worked, source_file, source_row_num
     )
     SELECT
         e.employee_key,
@@ -185,7 +185,13 @@ def load_fact_timesheet(conn, full_reload=False):
         t.client_employee_id, t.pay_code, t.punch_in_comment, t.punch_out_comment,
         t.hours_worked, t.punch_apply_date, t.punch_in_datetime, t.punch_out_datetime,
         t.scheduled_start_datetime, t.scheduled_end_datetime,
-        t.has_schedule, t.is_incomplete, t.source_file, t.source_row_num
+        t.has_schedule, t.is_incomplete,
+        -- A midnight entry is a booking, unless it's a regular shift code.
+        NOT (
+            t.punch_in_datetime::time = '00:00:00'
+            AND COALESCE(t.pay_code, '') NOT IN ('Hourly', 'Exempt', 'normal_worked', 'Per Diem')
+        ) AS is_worked,
+        t.source_file, t.source_row_num
     FROM silver.timesheet AS t
     JOIN gold.dim_employee AS e USING (client_employee_id)
     LEFT JOIN gold.dim_department AS d ON d.department_id = t.department_id

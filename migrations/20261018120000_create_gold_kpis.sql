@@ -46,3 +46,18 @@ SELECT
 FROM months AS m
 LEFT JOIN terms AS t                     ON t.month = m.month
 LEFT JOIN gold.kpi_active_headcount AS h ON h.as_of_date = m.month;
+
+-- Average tenure per department (real employees, current staff and leavers).
+CREATE OR REPLACE VIEW gold.kpi_avg_tenure_by_department AS
+SELECT
+    department_id,
+    department_name,
+    COUNT(*)  AS employees,
+    -- Leavers: hire to termination. Active staff: hire to the last day of data.
+    ROUND(AVG(
+        COALESCE(term_date, (SELECT MAX(punch_apply_date) FROM gold.fact_timesheet))
+        - recent_hire_date
+    ) / 365, 1)  AS avg_tenure_years
+FROM gold.dim_employee
+WHERE NOT is_inferred                         -- real employees only
+GROUP BY department_id, department_name;

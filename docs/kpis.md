@@ -29,6 +29,15 @@ Average tenure in years per department (employee's assigned department).
   still employed. Includes current staff and leavers.
 - 29 of 38 departments have one employee; read with the `employees` column.
 
+### `gold.kpi_early_attrition_rate`
+
+Share of all employees on file who left within 90 days of their most recent
+hire (one row).
+
+- Usually measured on a recent hiring cohort, but the newest hire is from
+  2022, so no recent cohort exists.
+- Result is 0% under any definition (see Anomalies).
+
 ## Anomalies
 
 ### No terminations before October 2024
@@ -40,3 +49,5 @@ Earlier leavers were likely excluded from the export.
 - **Turnover** before October 2024 would show 0, so it starts there.
 - **Average tenure** is overstated (22.7 years): shorter-tenure leavers are
   missing.
+- **Early attrition** shows 0%: short-tenure leavers are missing, and nobody
+  was hired recently. The 0% comes from the data, not good onboarding.

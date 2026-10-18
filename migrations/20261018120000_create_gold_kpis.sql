@@ -61,3 +61,16 @@ SELECT
 FROM gold.dim_employee
 WHERE NOT is_inferred                         -- real employees only
 GROUP BY department_id, department_name;
+
+-- Share of employees who left within 90 days of their most recent hire (one row).
+CREATE OR REPLACE VIEW gold.kpi_early_attrition_rate AS
+SELECT
+    90                                                         AS window_days,    -- "early" = within 90 days of hire
+    COUNT(*)                                                   AS employees,
+    COUNT(*) FILTER (WHERE term_date - recent_hire_date <= 90) AS early_leavers,
+    ROUND(
+        COUNT(*) FILTER (WHERE term_date - recent_hire_date <= 90)
+        * 100.0 / NULLIF(COUNT(*), 0)
+    , 1)                                                       AS early_attrition_rate_pct
+FROM gold.dim_employee
+WHERE NOT is_inferred;                                          -- real employees only

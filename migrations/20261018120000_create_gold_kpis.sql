@@ -10,5 +10,9 @@ LEFT JOIN gold.dim_employee AS e
     ON  e.is_inferred = false                                 -- real employees only
     AND e.recent_hire_date <= d.full_date                     -- already hired on this date
     AND (e.term_date IS NULL OR e.term_date >= d.full_date)   -- termination day counts as active
-WHERE d.full_date <= DATE '2025-10-16'                        -- employee file export date
+WHERE d.full_date <= (
+    SELECT MAX(to_timestamp(substring(source_file FROM '[0-9]{12}'), 'YYYYMMDDHH24MI'))::DATE
+    FROM gold.dim_employee
+    WHERE NOT is_inferred
+)                                                             -- employee file export date
 GROUP BY d.full_date;

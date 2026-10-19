@@ -52,8 +52,38 @@ def hr_pipeline():
 
         build_gold.build_gold(context["params"]["full_reload"])
 
+    @task
+    def quality_checks(**context):
+        from airflow.exceptions import AirflowFailException
+
+        from pipeline.quality import DataQualityError, run_quality_checks
+
+        try:
+            run_quality_checks(context["run_id"])
+        except DataQualityError as e:
+            # Bad data won't fix itself on a retry, so fail now (course pattern).
+            raise AirflowFailException(str(e))
+
+    # all_done: write a report even when an earlier task failed.
+    @task(trigger_rule="all_done")
+    def generate_report(**context):
+        from airflow.exceptions import AirflowFailException
+
+        from pipeline import report
+
+        path, all_passed = report.generate_report(context["run_id"])
+        # This is the last task, so it decides the run's colour: fail if checks failed or didn't run.
+        if not all_passed:
+            raise AirflowFailException(f"Quality checks failed or didn't run, see {path.name}")
+
     # Both silver tables read only from bronze, so they run in parallel; gold needs both.
-    load_bronze() >> [build_silver_timesheet(), build_silver_employee()] >> build_gold()
+    (
+        load_bronze()
+        >> [build_silver_timesheet(), build_silver_employee()]
+        >> build_gold()
+        >> quality_checks()
+        >> generate_report()
+    )
 
 
 hr_pipeline()

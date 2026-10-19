@@ -32,9 +32,12 @@ x-airflow-common: &airflow-common
     MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     MINIO_BUCKET: ${MINIO_BUCKET}
     INCREMENTAL_WINDOW_DAYS: ${INCREMENTAL_WINDOW_DAYS}
+    DQ_MAX_REJECT_PCT: ${DQ_MAX_REJECT_PCT:-1}
   volumes:
     - ./dags:/opt/airflow/dags
     - ./pipeline:/opt/airflow/pipeline
+    # Run reports land in the project folder
+    - ./reports:/opt/airflow/reports
     # Shared so the UI can show logs written by tasks in the scheduler container
     - airflow_logs:/opt/airflow/logs
   depends_on: &airflow-common-depends-on

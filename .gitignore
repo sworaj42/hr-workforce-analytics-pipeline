@@ -27,3 +27,6 @@ Thumbs.db
 
 # Tests
 .pytest_cache/
+
+# Run reports (a sample is in docs/sample_report.md)
+reports/

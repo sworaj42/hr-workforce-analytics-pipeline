@@ -24,3 +24,6 @@ Thumbs.db
 *.log
 *.db
 *.sqlite3
+
+# Tests
+.pytest_cache/

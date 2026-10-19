@@ -1,11 +1,22 @@
 # API
 
-FastAPI app in `api/`. Run from the project root:
+FastAPI app in `api/`, served by the `api` service in docker-compose.yml
+(docs at http://localhost:8000/docs). It needs the migrations applied, then
+the users seeded once (and again after changing their passwords in `.env`):
 
 ```
-python -m api.seed_users          # once, and after changing the passwords in .env
-uvicorn api.main:app --reload     # docs at http://localhost:8000/docs
+docker compose up -d api
+docker compose exec api python -m api.seed_users
 ```
+
+Without Docker, from the project root: `python -m api.seed_users`, then
+`uvicorn api.main:app --reload`.
+
+## Tests
+
+`python -m pytest` from the project root. The tests run against the real
+database and need the users seeded; the create/delete test removes its own
+employee afterwards.
 
 ## Authentication
 

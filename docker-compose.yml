@@ -181,6 +181,36 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  # HR REST API (http://localhost:8000/docs)
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    image: hr-api
+    container_name: hr_api
+    environment:
+      # Service name on the Docker network, not the host port
+      POSTGRES_HOST: warehouse-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES}
+      # Only used by api/seed_users.py
+      API_ADMIN_PASSWORD: ${API_ADMIN_PASSWORD}
+      API_VIEWER_PASSWORD: ${API_VIEWER_PASSWORD}
+    # Mounted like the Airflow code, so code changes need a restart, not a rebuild
+    volumes:
+      - ./api:/app/api
+      - ./pipeline:/app/pipeline
+    ports:
+      - "8000:8000"
+    depends_on:
+      warehouse-db:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   warehouse_data:
   minio_data:

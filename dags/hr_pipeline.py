@@ -10,6 +10,7 @@ from airflow.sdk import Param, dag, task
     start_date=datetime(2026, 1, 1),
     catchup=False,
     max_active_runs=1,  # runs rebuild shared tables, so they must not overlap
+    is_paused_upon_creation=False,  # ready after a fresh start; schedule=None keeps it manual
     tags=["bronze", "silver", "gold"],
     params={
         "full_reload": Param(

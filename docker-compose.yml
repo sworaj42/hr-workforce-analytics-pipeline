@@ -40,6 +40,9 @@ x-airflow-common: &airflow-common
   depends_on: &airflow-common-depends-on
     airflow-db:
       condition: service_healthy
+    # The warehouse schema must exist before any task runs
+    migrations:
+      condition: service_completed_successfully
 
 services:
   warehouse-db:
@@ -181,6 +184,29 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  # One-off job: applies the SQL migrations that haven't run yet, then exits.
+  # Same build and tag as api, so the image is built once and shared.
+  migrations:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    image: hr-api
+    container_name: hr_migrations
+    command: python -m pipeline.migrate
+    environment:
+      POSTGRES_HOST: warehouse-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./migrations:/app/migrations
+      - ./pipeline:/app/pipeline
+    depends_on:
+      warehouse-db:
+        condition: service_healthy
+    restart: "no"
+
   # HR REST API (http://localhost:8000/docs)
   api:
     build:
@@ -188,6 +214,8 @@ services:
       dockerfile: api/Dockerfile
     image: hr-api
     container_name: hr_api
+    # Seed the API users (upsert, safe on every start), then serve
+    command: sh -c "python -m api.seed_users && uvicorn api.main:app --host 0.0.0.0 --port 8000"
     environment:
       # Service name on the Docker network, not the host port
       POSTGRES_HOST: warehouse-db
@@ -197,7 +225,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES}
-      # Only used by api/seed_users.py
+      # Used by api/seed_users.py at startup
       API_ADMIN_PASSWORD: ${API_ADMIN_PASSWORD}
       API_VIEWER_PASSWORD: ${API_VIEWER_PASSWORD}
     # Mounted like the Airflow code, so code changes need a restart, not a rebuild
@@ -207,8 +235,8 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      warehouse-db:
-        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     restart: unless-stopped
 
 volumes:

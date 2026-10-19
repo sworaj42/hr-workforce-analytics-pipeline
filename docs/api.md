@@ -1,13 +1,9 @@
 # API
 
 FastAPI app in `api/`, served by the `api` service in docker-compose.yml
-(docs at http://localhost:8000/docs). It needs the migrations applied, then
-the users seeded once (and again after changing their passwords in `.env`):
-
-```
-docker compose up -d api
-docker compose exec api python -m api.seed_users
-```
+(docs at http://localhost:8000/docs). On every start the service seeds the
+`admin` and `viewer` users from `.env` (an upsert), so after changing their
+passwords run `docker compose restart api`.
 
 Without Docker, from the project root: `python -m api.seed_users`, then
 `uvicorn api.main:app --reload`.

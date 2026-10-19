@@ -1,11 +1,13 @@
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from psycopg2.extras import RealDictCursor
 
+from api.auth import get_current_user
 from pipeline.db import get_connection
 
-router = APIRouter(tags=["timesheets"])
+# Read only: any logged-in user.
+router = APIRouter(tags=["timesheets"], dependencies=[Depends(get_current_user)])
 
 
 def fetch_timesheets(employee_id, start_date, end_date, limit, offset):

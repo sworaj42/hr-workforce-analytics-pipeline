@@ -54,3 +54,12 @@ in the source data.
 - Verified on the old system only; new-system extracts contain no time-off
   rows. A shift under another code starting exactly at midnight would be
   treated as a booking.
+
+### Test employee in the timesheets
+- The source timesheets contain a test employee, `TEST2` (4 punches). It is
+  not in the employee file, so gold keeps it as an inferred employee.
+
+### API edits and department names
+- `dim_department` takes each department's name from the latest file. An API
+  edit to a file employee's `department_name` keeps that employee's file
+  timestamp, so it can become the department's name in `dim_department`.

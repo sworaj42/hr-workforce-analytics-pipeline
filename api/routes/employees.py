@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from psycopg2.extras import RealDictCursor
 
+from api.auth import get_current_user, require_admin
 from api.schemas import EmployeeCreate, EmployeeUpdate
 from pipeline.db import get_connection
 
-router = APIRouter(prefix="/employees", tags=["employees"])
+# Every route needs a logged-in user; writes also need the admin role.
+router = APIRouter(prefix="/employees", tags=["employees"], dependencies=[Depends(get_current_user)])
 
 # Columns returned by every employee endpoint.
 EMPLOYEE_COLUMNS = """
@@ -62,7 +64,7 @@ def get_employee(employee_id: str):
     return row
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[Depends(require_admin)])
 def create_employee(employee: EmployeeCreate):
     """Add an employee; the pipeline keeps API-owned rows (source_file = 'api')."""
     conn = get_connection()
@@ -97,7 +99,7 @@ def create_employee(employee: EmployeeCreate):
     return row
 
 
-@router.patch("/{employee_id}")
+@router.patch("/{employee_id}", dependencies=[Depends(require_admin)])
 def update_employee(employee_id: str, employee: EmployeeUpdate):
     """Change only the fields sent; source_file is never changed."""
     fields = employee.model_dump(exclude_unset=True)
@@ -141,7 +143,7 @@ def update_employee(employee_id: str, employee: EmployeeUpdate):
         conn.close()
 
 
-@router.delete("/{employee_id}", status_code=204)
+@router.delete("/{employee_id}", status_code=204, dependencies=[Depends(require_admin)])
 def delete_employee(employee_id: str):
     """Soft delete: the row stays, flagged is_deleted."""
     conn = get_connection()

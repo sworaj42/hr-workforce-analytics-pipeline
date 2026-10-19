@@ -1,7 +1,8 @@
 # KPIs
 
 KPI views live in the `gold` schema, created by
-`migrations/20261018120000_create_gold_kpis.sql`.
+`migrations/20261018120000_create_gold_kpis.sql` and
+`migrations/20261020140000_add_more_kpis.sql`.
 
 ## Views
 
@@ -85,6 +86,32 @@ scheduled shift length (one row per employee).
 - Extra time = (punch-out − punch-in) − (scheduled end − scheduled start).
 - `overtime_hours` sums the extra time on overtime shifts only.
 
+### `gold.kpi_attendance_by_department`
+
+Late arrivals, early departures and overtime per department (one row per
+department).
+
+- Same rules as the attendance KPIs, counted in shifts rather than days.
+- Scheduled shifts only (about 42% of all punches); 9% of them have no
+  department and are grouped as `No department`.
+
+### `gold.kpi_hours_by_department`
+
+Employees, total worked hours and average hours per employee-day, per
+department (one row per department).
+
+- Same punches as `kpi_avg_working_hours` (finished, worked).
+- Only 64.5% of punches have a department; the rest are grouped as
+  `No department`.
+
+### `gold.kpi_long_shifts`
+
+Double shifts (more than 16 worked hours) per month, with their share of all
+worked shifts.
+
+- 16 hours, not 12: about 20% of shifts are standard 12-hour shifts.
+- Finished, worked shifts only.
+
 ## Anomalies
 
 ### No terminations before October 2024
@@ -108,6 +135,8 @@ one.
   those days aren't covered.
 - **August 2025** falls in the low-volume gap (few punches from July to mid
   September).
+- **By department**, coverage is about the same: 91% of scheduled shifts have a
+  department.
 
 ### Low-volume gap, July to mid-September 2025
 

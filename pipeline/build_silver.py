@@ -8,7 +8,8 @@ same counts to silver.cleaning_log.
 
 silver.timesheet loads incrementally by default (the last INCREMENTAL_WINDOW_DAYS
 before the latest punch date are reloaded) or fully with --full-reload.
-silver.employee is a small snapshot and is always reloaded fully.
+silver.employee is upserted by default, keeping API changes; --full-reload
+truncates it first, resetting it to the file.
 
 Run from the project root:  python -m pipeline.build_silver [--full-reload]
 """
@@ -139,29 +140,48 @@ def build_silver_timesheet(run_id: str | None = None, full_reload: bool = False)
     return loaded
 
 
-def build_silver_employee(run_id: str | None = None) -> int:
-    """Reload silver.employee fully; returns the rows loaded."""
+def build_silver_employee(run_id: str | None = None, full_reload: bool = False) -> int:
+    """Upsert silver.employee from the file; returns the employees in the file."""
+    load_mode = "full" if full_reload else "incremental"
     sql = (SQL_DIR / "silver_employee.sql").read_text(encoding="utf-8")
     conn = get_connection()
     try:
         with conn, conn.cursor() as cur:
+            if full_reload:
+                cur.execute("TRUNCATE silver.employee")
+
             read = count_rows(cur, "bronze.employee_raw")
             cur.execute(sql)
             rejected = count_rows(cur, "silver.employee_rejects")
-            loaded = count_rows(cur, "silver.employee")
+            # Counted from the file, not the table: API rows live there too.
+            cur.execute(
+                "SELECT count(DISTINCT silver.clean_text(client_employee_id)) "
+                "FROM checked_employee WHERE reject_reason IS NULL"
+            )
+            loaded = cur.fetchone()[0]
+            # now() is the transaction start, so this finds rows written by this run.
+            cur.execute("SELECT count(*) FROM silver.employee WHERE loaded_at = now()")
+            upserted = cur.fetchone()[0]
+            # File rows only, so API edits to department_name aren't counted.
+            cur.execute(
+                "SELECT count(*) FROM checked_employee WHERE reject_reason IS NULL "
+                "AND left(silver.clean_text(department_name), length(silver.clean_text(department_id)) + 1) "
+                "= silver.clean_text(department_id) || '-'"
+            )
+            stripped = cur.fetchone()[0]
             write_cleaning_log(
-                cur, run_id or manual_run_id(), "silver.employee", "full",
+                cur, run_id or manual_run_id(), "silver.employee", load_mode,
                 None, read, rejected, 0, loaded,
             )
     finally:
         conn.close()
 
-    stripped, per_diem = fetch_counts(
-        """SELECT count(*) FROM silver.employee s
-           JOIN bronze.employee_raw b USING (source_file, source_row_num)
-           WHERE s.department_name <> silver.clean_text(b.department_name)""",
+    per_diem, api_rows = fetch_counts(
         "SELECT count(*) FROM silver.employee WHERE is_per_diem",
+        "SELECT count(*) FROM silver.employee WHERE source_file = 'api'",
     )
+    logger.info(f"silver.employee: {upserted:,} inserted or updated, {loaded - upserted:,} unchanged")
+    logger.info(f"silver.employee: {api_rows:,} API-owned rows kept")
     logger.info(f"silver.employee: {stripped:,} department ID prefixes stripped")
     logger.info(f"silver.employee: {per_diem:,} employees marked per diem")
     return loaded
@@ -172,7 +192,7 @@ def parse_args():
     parser.add_argument(
         "--full-reload",
         action="store_true",
-        help="Truncate and reload silver.timesheet (default: incremental)",
+        help="Truncate and reload the silver tables (default: incremental)",
     )
     return parser.parse_args()
 
@@ -185,4 +205,4 @@ if __name__ == "__main__":
     args = parse_args()
     run_id = manual_run_id()  # one ID for both tables in this run
     build_silver_timesheet(run_id, full_reload=args.full_reload)
-    build_silver_employee(run_id)
+    build_silver_employee(run_id, full_reload=args.full_reload)

@@ -1,6 +1,7 @@
--- Rebuild silver.employee and its rejects from bronze (full refresh, one transaction).
+-- Upsert silver.employee from bronze and refill its rejects (one transaction).
+-- A full reload truncates silver.employee first (build_silver.py).
 
-TRUNCATE silver.employee, silver.employee_rejects;
+TRUNCATE silver.employee_rejects;
 
 -- Raw bronze rows plus the first rule each fails (NULL = valid; missing optional values pass).
 CREATE TEMP TABLE checked_employee ON COMMIT DROP AS
@@ -91,4 +92,29 @@ FROM (
     WHERE reject_reason IS NULL
 ) AS cleaned
 -- Newest file first: names sort by extraction time (employee_YYYYMMDDHHMM.csv).
-ORDER BY client_employee_id, source_file DESC;
+ORDER BY client_employee_id, source_file DESC
+-- Only a new file overwrites a row, so API edits survive reruns of the same file.
+-- is_deleted isn't updated (deletes stick); rows missing from the file are kept.
+ON CONFLICT (client_employee_id) DO UPDATE SET
+    first_name            = EXCLUDED.first_name,
+    last_name             = EXCLUDED.last_name,
+    job_code              = EXCLUDED.job_code,
+    job_title             = EXCLUDED.job_title,
+    job_start_date        = EXCLUDED.job_start_date,
+    organization_name     = EXCLUDED.organization_name,
+    department_id         = EXCLUDED.department_id,
+    department_name       = EXCLUDED.department_name,
+    manager_employee_id   = EXCLUDED.manager_employee_id,
+    fte_status            = EXCLUDED.fte_status,
+    scheduled_weekly_hour = EXCLUDED.scheduled_weekly_hour,
+    hire_date             = EXCLUDED.hire_date,
+    recent_hire_date      = EXCLUDED.recent_hire_date,
+    anniversary_date      = EXCLUDED.anniversary_date,
+    term_date             = EXCLUDED.term_date,
+    active_status         = EXCLUDED.active_status,
+    termination_reason    = EXCLUDED.termination_reason,
+    is_per_diem           = EXCLUDED.is_per_diem,
+    source_file           = EXCLUDED.source_file,
+    source_row_num        = EXCLUDED.source_row_num,
+    loaded_at             = now()
+WHERE silver.employee.source_file IS DISTINCT FROM EXCLUDED.source_file;

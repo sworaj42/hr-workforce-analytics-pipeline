@@ -20,6 +20,8 @@ in the source data.
 - Delete is not termination: a leaver gets a `term_date` and stays in
   historical KPIs; a deleted record shouldn't have existed (test or
   duplicate), so it's removed from all HR KPIs.
+- A newer employee file overwrites API edits and API-created rows with the
+  same ID, but never undoes a delete.
 
 ## Data findings
 

@@ -43,7 +43,7 @@ def hr_pipeline():
     def build_silver_employee(**context):
         from pipeline import build_silver
 
-        build_silver.build_silver_employee(context["run_id"])
+        build_silver.build_silver_employee(context["run_id"], context["params"]["full_reload"])
 
     @task
     def build_gold(**context):

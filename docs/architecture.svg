@@ -105,12 +105,12 @@
     <path d="M570,626 H690"/>
     <animate attributeName="stroke-dashoffset" from="0" to="-16" dur="1.2s" repeatCount="indefinite"/>
   </g>
-  <!-- Labels sit on the line, over the dotted border -->
-  <rect x="578" y="441" width="104" height="18" rx="4" fill="#0b0f17"/>
-  <rect x="608" y="617" width="44" height="18" rx="4" fill="#0b0f17"/>
+  <!-- Labels sit just above the line -->
+  <rect x="578" y="428" width="104" height="16" rx="4" fill="#0b0f17"/>
+  <rect x="608" y="604" width="44" height="16" rx="4" fill="#0b0f17"/>
   <g fill="#7c8799" font-size="12" text-anchor="middle">
-    <text x="630" y="454">reads / writes</text>
-    <text x="630" y="630">reads</text>
+    <text x="630" y="440">reads / writes</text>
+    <text x="630" y="616">reads</text>
   </g>
 
   <g text-anchor="middle">

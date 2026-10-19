@@ -77,7 +77,8 @@ def load_dim_department(conn):
         SELECT department_id, department_name, source_file FROM silver.employee
     ) AS all_departments
     WHERE department_id IS NOT NULL
-    ORDER BY department_id, department_name IS NULL, substring(source_file FROM '[0-9]{12}') DESC
+    -- NULLS LAST: API rows have no file timestamp, so a file's name wins.
+    ORDER BY department_id, department_name IS NULL, substring(source_file FROM '[0-9]{12}') DESC NULLS LAST
     ON CONFLICT (department_id) DO UPDATE SET
         department_name  = EXCLUDED.department_name,
         department_label = EXCLUDED.department_label,
@@ -103,14 +104,14 @@ def load_dim_employee(conn):
         organization_name, department_id, department_name, fte_status,
         scheduled_weekly_hour, manager_employee_id, hire_date, recent_hire_date,
         term_date, active_status, termination_reason, is_per_diem,
-        is_inferred, source_file, source_row_num
+        is_deleted, is_inferred, source_file, source_row_num
     )
     SELECT
         client_employee_id, first_name, job_code, job_title, job_start_date,
         organization_name, department_id, department_name, fte_status,
         scheduled_weekly_hour, manager_employee_id, hire_date, recent_hire_date,
         term_date, active_status, termination_reason, is_per_diem,
-        false, source_file, source_row_num
+        is_deleted, false, source_file, source_row_num
     FROM silver.employee
     ON CONFLICT (client_employee_id) DO UPDATE SET
         first_name            = EXCLUDED.first_name,
@@ -129,15 +130,29 @@ def load_dim_employee(conn):
         active_status         = EXCLUDED.active_status,
         termination_reason    = EXCLUDED.termination_reason,
         is_per_diem           = EXCLUDED.is_per_diem,
+        is_deleted            = EXCLUDED.is_deleted,     -- follows silver's flag
         is_inferred           = EXCLUDED.is_inferred,
         source_file           = EXCLUDED.source_file,
         source_row_num        = EXCLUDED.source_row_num,
         loaded_at             = now()
     """
+    # Real employees no longer in silver (removed by a full reload) count as deleted.
+    mark_orphans_deleted_sql = """
+    UPDATE gold.dim_employee AS d
+    SET is_deleted = true, loaded_at = now()
+    WHERE NOT d.is_inferred
+      AND NOT d.is_deleted
+      AND NOT EXISTS (
+          SELECT 1 FROM silver.employee AS s
+          WHERE s.client_employee_id = d.client_employee_id
+      )
+    """
     try:
         with conn.cursor() as curr:
             curr.execute(upsert_dim_employee_sql)
             logger.info(f"{curr.rowcount} inserted or updated in gold.dim_employee")
+            curr.execute(mark_orphans_deleted_sql)
+            logger.info(f"{curr.rowcount} no longer in silver, marked deleted in gold.dim_employee")
         conn.commit()
     except Exception as e:
         conn.rollback()

@@ -22,6 +22,9 @@ in the source data.
   duplicate), so it's removed from all HR KPIs.
 - A newer employee file overwrites API edits and API-created rows with the
   same ID, but never undoes a delete.
+- After a full reload, real employees no longer in silver are marked deleted
+  in gold, so they leave the HR KPIs while their past punches keep a valid
+  employee.
 
 ## Data findings
 

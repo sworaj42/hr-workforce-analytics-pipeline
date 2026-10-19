@@ -16,6 +16,11 @@ in the source data.
   system (October 2025). No other employee uses that pay code.
 - Accepted by the data provider as an assumption.
 
+### Deleted employees (`is_deleted`)
+- Delete is not termination: a leaver gets a `term_date` and stays in
+  historical KPIs; a deleted record shouldn't have existed (test or
+  duplicate), so it's removed from all HR KPIs.
+
 ## Data findings
 
 ### The employee file is de-identified

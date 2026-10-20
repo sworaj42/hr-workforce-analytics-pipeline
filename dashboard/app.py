@@ -109,6 +109,18 @@ with hours_tab:
     col3.metric(f"Total worked hours ({period})", f"{total_hours:,.0f}")
     st.caption(CARDS_NOTE)
 
+    # Too big to compare with real departments
+    with_dept = dept_hours[dept_hours["department"] != "No department"]
+    st.plotly_chart(px.bar(
+        with_dept.nlargest(15, "total_hours"), x="total_hours", y="department",
+        orientation="h", title="Total hours by department (top 15)",
+        labels={"total_hours": "Hours", "department": "Department"},
+    ).update_yaxes(categoryorder="total ascending"))
+    st.caption(f"Static total for {period}, not affected by the date range. "
+               f"Excludes {no_dept_hours:,.0f} hours "
+               f"({no_dept_hours / total_hours * 100:.1f}% of all worked hours) "
+               "that have no department in the source data.")
+
     start, end = date_filter("hours_dates", first_day, last_day)
     fig = px.line(
         hours[hours["work_date"].between(start, end)],
@@ -124,17 +136,6 @@ with hours_tab:
     st.caption("Jul-mid-Sep 2025: low-volume data gap (days with no data "
                "appear as straight segments). The spike around 14 Sep is the "
                "switch to the new timekeeping system.")
-
-    # Too big to compare with real departments
-    with_dept = dept_hours[dept_hours["department"] != "No department"]
-    st.plotly_chart(px.bar(
-        with_dept.nlargest(15, "total_hours"), x="total_hours", y="department",
-        orientation="h", title="Total hours by department (top 15)",
-        labels={"total_hours": "Hours", "department": "Department"},
-    ).update_yaxes(categoryorder="total ascending"))
-    st.caption(f"Full data period, not affected by the date range. Excludes "
-               f"{no_dept_hours:,.0f} hours ({no_dept_hours / total_hours * 100:.1f}% "
-               "of worked hours) with no department in the source.")
 
 with attendance_tab:
     late = load("kpi_late_arrivals")

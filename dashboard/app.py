@@ -110,12 +110,17 @@ with hours_tab:
     st.caption(CARDS_NOTE)
 
     start, end = date_filter("hours_dates", first_day, last_day)
-    st.plotly_chart(px.line(
+    fig = px.line(
         hours[hours["work_date"].between(start, end)],
         x="work_date", y="rolling_7d_avg_hours",
         title="Average working hours per employee (7-day rolling)",
         labels={"work_date": "Date", "rolling_7d_avg_hours": "Hours"},
-    ))
+    )
+    # Start at 0 so small changes don't look like big drops
+    fig.update_yaxes(rangemode="tozero")
+    # Show the whole selected range, even days with no data
+    fig.update_xaxes(range=[start, end])
+    st.plotly_chart(fig)
     st.caption("Jul-mid-Sep 2025: low-volume data gap (days with no data "
                "appear as straight segments). The spike around 14 Sep is the "
                "switch to the new timekeeping system.")

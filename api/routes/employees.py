@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from psycopg2.extras import RealDictCursor
 
 from api.auth import get_current_user, require_admin
@@ -21,7 +21,7 @@ UPDATABLE_COLUMNS = set(EmployeeUpdate.model_fields)
 
 
 @router.get("")
-def list_employees(limit: int = 50, offset: int = 0):
+def list_employees(limit: int = Query(50, ge=1, le=1000), offset: int = Query(0, ge=0)):
     """List employees, a page at a time."""
     conn = get_connection()
     try:

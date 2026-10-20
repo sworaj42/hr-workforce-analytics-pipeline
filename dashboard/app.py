@@ -21,14 +21,12 @@ def load(view):
 
 
 def date_filter(key, first, last):
-    # Returns one date while the user is still picking, two once done
-    return st.date_input("Date range", value=(first, last),
-                         min_value=first, max_value=last, key=key)
+    return st.slider("Date range", min_value=first, max_value=last,
+                     value=(first, last), format="YYYY-MM-DD", key=key)
 
 
 CARDS_NOTE = ("Cards cover the full data period; the date range below "
               "applies only to the charts.")
-PICK_END_DATE = "Pick an end date to update the charts."
 
 st.set_page_config(page_title="HR Workforce Dashboard", layout="wide")
 st.title("HR Workforce Dashboard")
@@ -58,26 +56,22 @@ with workforce_tab:
                 f"{attrition['early_attrition_rate_pct'].iloc[0]}%")
     st.caption(CARDS_NOTE)
 
-    dates = date_filter("workforce_dates", headcount["as_of_date"].iloc[0], last_day)
-    if len(dates) == 2:
-        start, end = dates
-        st.plotly_chart(px.line(
-            headcount[headcount["as_of_date"].between(start, end)],
-            x="as_of_date", y="active_count", title="Active headcount over time",
-            labels={"as_of_date": "Date", "active_count": "Active employees"},
-        ))
-        st.caption("Before Oct 2024, earlier leavers are missing from the file, "
-                   "so headcount is undercounted.")
+    start, end = date_filter("workforce_dates", headcount["as_of_date"].iloc[0], last_day)
+    st.plotly_chart(px.line(
+        headcount[headcount["as_of_date"].between(start, end)],
+        x="as_of_date", y="active_count", title="Active headcount over time",
+        labels={"as_of_date": "Date", "active_count": "Active employees"},
+    ))
+    st.caption("Before Oct 2024, earlier leavers are missing from the file, "
+               "so headcount is undercounted.")
 
-        fig = px.bar(
-            turnover[turnover["month"].between(start, end)],
-            x="month", y=["voluntary", "involuntary"], title="Terminations by month",
-            labels={"month": "Month", "value": "Terminations", "variable": "Type"},
-        )
-        fig.update_yaxes(dtick=1)
-        st.plotly_chart(fig)
-    else:
-        st.info(PICK_END_DATE)
+    fig = px.bar(
+        turnover[turnover["month"].between(start, end)],
+        x="month", y=["voluntary", "involuntary"], title="Terminations by month",
+        labels={"month": "Month", "value": "Terminations", "variable": "Type"},
+    )
+    fig.update_yaxes(dtick=1)
+    st.plotly_chart(fig)
 
     st.plotly_chart(px.bar(
         tenure.sort_values("avg_tenure_years"), x="avg_tenure_years",
@@ -109,20 +103,16 @@ with hours_tab:
     col3.metric(f"Total worked hours ({period})", f"{total_hours:,.0f}")
     st.caption(CARDS_NOTE)
 
-    dates = date_filter("hours_dates", first_day, last_day)
-    if len(dates) == 2:
-        start, end = dates
-        st.plotly_chart(px.line(
-            hours[hours["work_date"].between(start, end)],
-            x="work_date", y="rolling_7d_avg_hours",
-            title="Average working hours per employee (7-day rolling)",
-            labels={"work_date": "Date", "rolling_7d_avg_hours": "Hours"},
-        ))
-        st.caption("Jul-mid-Sep 2025: low-volume data gap (days with no data "
-                   "appear as straight segments). The spike around 14 Sep is the "
-                   "switch to the new timekeeping system.")
-    else:
-        st.info(PICK_END_DATE)
+    start, end = date_filter("hours_dates", first_day, last_day)
+    st.plotly_chart(px.line(
+        hours[hours["work_date"].between(start, end)],
+        x="work_date", y="rolling_7d_avg_hours",
+        title="Average working hours per employee (7-day rolling)",
+        labels={"work_date": "Date", "rolling_7d_avg_hours": "Hours"},
+    ))
+    st.caption("Jul-mid-Sep 2025: low-volume data gap (days with no data "
+               "appear as straight segments). The spike around 14 Sep is the "
+               "switch to the new timekeeping system.")
 
     # Too big to compare with real departments
     with_dept = dept_hours[dept_hours["department"] != "No department"]
@@ -155,23 +145,19 @@ with attendance_tab:
     col4.metric(f"Double shift share ({period})", f"{double_share:.2f}%")
     st.caption(CARDS_NOTE)
 
-    dates = date_filter("attendance_dates", long_shifts["month"].iloc[0],
-                        long_shifts["month"].iloc[-1])
-    if len(dates) == 2:
-        start, end = dates
-        fig = px.bar(
-            long_shifts[long_shifts["month"].between(start, end)],
-            x="month", y="double_shifts",
-            title="Double shifts (over 16 hours) per month",
-            labels={"month": "Month", "double_shifts": "Double shifts"},
-        )
-        # Whole numbers only
-        fig.update_yaxes(tickformat="d")
-        st.plotly_chart(fig)
-        st.caption("Jul-Sep 2025: low-volume data gap, so the drop is missing "
-                   "data, not fewer double shifts.")
-    else:
-        st.info(PICK_END_DATE)
+    start, end = date_filter("attendance_dates", long_shifts["month"].iloc[0],
+                             long_shifts["month"].iloc[-1])
+    fig = px.bar(
+        long_shifts[long_shifts["month"].between(start, end)],
+        x="month", y="double_shifts",
+        title="Double shifts (over 16 hours) per month",
+        labels={"month": "Month", "double_shifts": "Double shifts"},
+    )
+    # Whole numbers only
+    fig.update_yaxes(tickformat="d")
+    st.plotly_chart(fig)
+    st.caption("Jul-Sep 2025: low-volume data gap, so the drop is missing "
+               "data, not fewer double shifts.")
 
     with_dept = attendance[attendance["department"] != "No department"]
     top = with_dept.nlargest(15, "scheduled_shifts")

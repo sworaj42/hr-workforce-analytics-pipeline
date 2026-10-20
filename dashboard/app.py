@@ -71,6 +71,8 @@ with workforce_tab:
         labels={"month": "Month", "value": "Terminations", "variable": "Type"},
     )
     fig.update_yaxes(dtick=1)
+    # One tick per month, shown as month and year
+    fig.update_xaxes(dtick="M1", tickformat="%b %Y", hoverformat="%b %Y")
     st.plotly_chart(fig)
 
     st.plotly_chart(px.bar(
@@ -155,6 +157,8 @@ with attendance_tab:
     )
     # Whole numbers only
     fig.update_yaxes(tickformat="d")
+    # One tick per month, shown as month and year
+    fig.update_xaxes(dtick="M1", tickformat="%b %Y", hoverformat="%b %Y")
     st.plotly_chart(fig)
     st.caption("Jul-Sep 2025: low-volume data gap, so the drop is missing "
                "data, not fewer double shifts.")

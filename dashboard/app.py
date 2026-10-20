@@ -150,22 +150,6 @@ with attendance_tab:
     # Same timesheet period as the Working hours tab
     st.caption(f"Cards cover {period} and are not affected by the date range.")
 
-    start, end = date_filter("attendance_dates", long_shifts["month"].iloc[0],
-                             long_shifts["month"].iloc[-1])
-    fig = px.bar(
-        long_shifts[long_shifts["month"].between(start, end)],
-        x="month", y="double_shifts",
-        title="Double shifts (over 16 hours) per month",
-        labels={"month": "Month", "double_shifts": "Double shifts"},
-    )
-    # Whole numbers only
-    fig.update_yaxes(tickformat="d")
-    # One tick per month, shown as month and year
-    fig.update_xaxes(dtick="M1", tickformat="%b %Y", hoverformat="%b %Y")
-    st.plotly_chart(fig)
-    st.caption("Jul-Sep 2025: low-volume data gap, so the drop is missing "
-               "data, not fewer double shifts.")
-
     with_dept = attendance[attendance["department"] != "No department"]
     top = with_dept.nlargest(15, "scheduled_shifts")
     # Rates, so busy and quiet departments compare fairly
@@ -181,5 +165,21 @@ with attendance_tab:
         labels={"department": "Department", "value": "% of scheduled shifts",
                 "variable": "Measure"},
     ).update_yaxes(autorange="reversed"))
-    st.caption("Full data period, not affected by the date range. Scheduled "
-               "shifts only (~42% of punches). Shifts with no department are left out.")
+    st.caption("Full data period, not affected by the date range. "
+               "Shifts with no department are left out.")
+
+    start, end = date_filter("attendance_dates", long_shifts["month"].iloc[0],
+                             long_shifts["month"].iloc[-1])
+    fig = px.bar(
+        long_shifts[long_shifts["month"].between(start, end)],
+        x="month", y="double_shifts",
+        title="Double shifts (over 16 hours) per month",
+        labels={"month": "Month", "double_shifts": "Double shifts"},
+    )
+    # Whole numbers only
+    fig.update_yaxes(tickformat="d")
+    # One tick per month, shown as month and year
+    fig.update_xaxes(dtick="M1", tickformat="%b %Y", hoverformat="%b %Y")
+    st.plotly_chart(fig)
+    st.caption("Jul-Sep 2025: low-volume data gap, so the drop is missing "
+               "data, not fewer double shifts.")

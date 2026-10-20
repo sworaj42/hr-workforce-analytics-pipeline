@@ -101,11 +101,10 @@ with hours_tab:
     employee_days = per_employee["days_worked"].sum()
 
     col1, col2, col3 = st.columns(3)
-    col1.metric(f"Avg hours per worked day ({period})",
-                f"{total_hours / employee_days:.2f}")
-    col2.metric(f"Employees with worked hours ({period})", f"{len(per_employee):,}")
-    col3.metric(f"Total worked hours ({period})", f"{total_hours:,.0f}")
-    st.caption(CARDS_NOTE)
+    col1.metric("Avg hours per worked day", f"{total_hours / employee_days:.2f}")
+    col2.metric("Employees with worked hours", f"{len(per_employee):,}")
+    col3.metric("Total worked hours", f"{total_hours:,.0f}")
+    st.caption(f"Cards cover {period} and are not affected by the date range.")
 
     # Too big to compare with real departments
     with_dept = dept_hours[dept_hours["department"] != "No department"]

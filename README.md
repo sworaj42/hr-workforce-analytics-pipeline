@@ -41,6 +41,31 @@ Configuration, options and troubleshooting: [docs/setup.md](docs/setup.md)
 | Tests | pytest |
 | Runtime | Docker Compose |
 
+## Notable features
+
+- **Two sources:** files are read from MinIO or the local `data/` folder,
+  chosen per run.
+- **Idempotent loads:** any step can be rerun without duplicating data.
+  Bronze deletes a file's earlier rows (matched by `source_file`) and
+  reloads them in one transaction; silver and gold delete their window and
+  insert it again; dimensions are upserted on their natural key.
+- **Incremental loading:** each run finds the latest punch date already
+  loaded, steps back 30 days (configurable), deletes that window and
+  reloads it from the layer below; `full_reload = true` rebuilds
+  everything instead.
+- **Layout check:** a source file whose header doesn't match the table
+  fails instead of loading shifted columns.
+- **Rejects, not drops:** invalid rows go to a rejects table with their
+  original values and the rule they broke.
+- **Inferred employees:** the timesheets name 10,773 employees but the file
+  has 50; each missing one gets a placeholder row, so every punch has an
+  employee.
+- **Lineage:** every punch and employee traces back to its source file and
+  line.
+- **Quality checks and reports:** six checks run after every load, with
+  results stored in the database; a failed check fails the run, and each
+  run writes a Markdown report.
+
 ## Medallion layers
 
 One PostgreSQL database with a schema per layer. Bronze keeps the files as

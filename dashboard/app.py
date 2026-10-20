@@ -64,9 +64,8 @@ with workforce_tab:
         labels={"avg_tenure_years": "Years", "department_name": "Department",
                 "employees": "Employees"},
     ))
-    st.caption(f"Static snapshot on {last_day:%d %b %Y}, not affected by the "
-               f"date range. Departments with one employee "
-               f"({len(tenure) - len(shared)} of {len(tenure)}) are left out.")
+    st.caption(f"Static snapshot on {last_day:%d %b %Y}. Departments with one "
+               f"employee ({len(tenure) - len(shared)} of {len(tenure)}) are left out.")
 
     start, end = date_filter("workforce_dates", headcount["as_of_date"].iloc[0], last_day)
     st.plotly_chart(px.line(
@@ -168,8 +167,7 @@ with attendance_tab:
         labels={"department": "Department", "value": "% of scheduled shifts",
                 "variable": "Measure"},
     ).update_yaxes(autorange="reversed"))
-    st.caption("Full data period, not affected by the date range. "
-               "Shifts with no department are left out.")
+    st.caption(f"Static rates for {period}. Shifts with no department are left out.")
 
     start, end = date_filter("attendance_dates", long_shifts["month"].iloc[0],
                              long_shifts["month"].iloc[-1])

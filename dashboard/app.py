@@ -30,6 +30,13 @@ CARDS_NOTE = "Cards cover the full data period and are not affected by the date 
 st.set_page_config(page_title="HR Workforce Dashboard", layout="wide")
 st.title("HR Workforce Dashboard")
 
+# Nothing to show until the pipeline has run once; clear the cache so a
+# refresh after the run picks up the data.
+if load("kpi_active_headcount").empty:
+    load.clear()
+    st.info("No data yet: trigger hr_pipeline in Airflow, then refresh this page.")
+    st.stop()
+
 workforce_tab, hours_tab, attendance_tab = st.tabs(
     ["Workforce", "Working hours", "Attendance"]
 )

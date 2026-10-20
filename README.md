@@ -127,6 +127,47 @@ Each row also records its `source_file`, `source_row_num` and `loaded_at`.
   (time-off bookings aren't worked time).
 - **KPI views** are plain SQL views, always in step with the tables.
 
+## Orchestration
+
+One Airflow DAG, `hr_pipeline`, runs the whole pipeline. It's triggered
+manually, and only one run can be active at a time, since every run
+rewrites the same tables.
+
+![hr_pipeline DAG in Airflow](docs/screenshots/airflow_dag.png)
+
+| Task | What it does |
+|---|---|
+| `load_bronze` | Copies the source files into bronze |
+| `build_silver_*` | Clean, validate and deduplicate; run in parallel, since both read only from bronze |
+| `build_gold` | Upserts the dimensions and reloads the fact table |
+| `quality_checks` | Runs the six data quality checks |
+| `generate_report` | Writes the run report to `reports/` |
+
+**Run options:** `full_reload` (default `false`) rebuilds everything instead
+of the last 30 days; `source` (default `minio`) can be set to `local`.
+
+**Retries:** each task retries twice, which is safe because every step
+replaces its data instead of appending. A failed quality check fails at
+once without retrying, and the report is still written, so every run
+leaves a record.
+
+The DAG only calls functions in `pipeline/`, so every step also runs
+without Airflow.
+
+## Dashboard
+
+Three tabs at http://localhost:8501, reading gold's KPI views. Every chart
+showing a data gap or odd pattern explains it in its caption.
+
+**Workforce:** headcount, turnover, tenure and early attrition
+![Workforce tab](docs/screenshots/workforce.png)
+
+**Working hours:** average and rolling hours, hours by department
+![Working hours tab](docs/screenshots/working_hours.png)
+
+**Attendance:** late arrivals, early departures, overtime and double shifts
+![Attendance tab](docs/screenshots/attendance.png)
+
 ## Docs
 
 - [Setup](docs/setup.md)

@@ -99,8 +99,6 @@ with hours_tab:
     period = f"{first_day:%d %b} – {last_day:%d %b %Y}"
     total_hours = dept_hours["total_hours"].sum()
     employee_days = per_employee["days_worked"].sum()
-    no_dept_hours = dept_hours.loc[
-        dept_hours["department"] == "No department", "total_hours"].sum()
 
     col1, col2, col3 = st.columns(3)
     col1.metric(f"Avg hours per worked day ({period})",
@@ -116,10 +114,8 @@ with hours_tab:
         orientation="h", title="Total hours by department (top 15)",
         labels={"total_hours": "Hours", "department": "Department"},
     ).update_yaxes(categoryorder="total ascending"))
-    st.caption(f"Static total for {period}, not affected by the date range. "
-               f"Excludes {no_dept_hours:,.0f} hours "
-               f"({no_dept_hours / total_hours * 100:.1f}% of all worked hours) "
-               "that have no department in the source data.")
+    st.caption(f"Static total for {period}. Hours with no department in the "
+               "source data are left out.")
 
     start, end = date_filter("hours_dates", first_day, last_day)
     fig = px.line(

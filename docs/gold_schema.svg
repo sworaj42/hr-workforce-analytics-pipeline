@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 372" width="900" height="372" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">
+  <!-- Background -->
+  <rect width="900" height="372" rx="14" fill="#0b0f17"/>
+
+  <!-- Each fact row points to one row in each dimension -->
+  <g stroke="#3a4456" stroke-width="1.5" fill="none">
+    <path d="M320,90 H295 V130 H270"/>
+    <path d="M580,130 H620 V90 H640"/>
+    <path d="M580,150 H604 V284 H640"/>
+    <path d="M580,170 H596 V284 H604"/>
+  </g>
+  <path d="M309,90 L320,85 M309,90 L320,95" stroke="#6b7280" stroke-width="1.2" fill="none"/>
+  <path d="M277,125 V135" stroke="#6b7280" stroke-width="1.2"/>
+  <path d="M281,125 V135" stroke="#6b7280" stroke-width="1.2"/>
+  <path d="M591,130 L580,125 M591,130 L580,135" stroke="#6b7280" stroke-width="1.2" fill="none"/>
+  <path d="M633,85 V95" stroke="#6b7280" stroke-width="1.2"/>
+  <path d="M629,85 V95" stroke="#6b7280" stroke-width="1.2"/>
+  <path d="M591,150 L580,145 M591,150 L580,155" stroke="#6b7280" stroke-width="1.2" fill="none"/>
+  <path d="M591,170 L580,165 M591,170 L580,175" stroke="#6b7280" stroke-width="1.2" fill="none"/>
+  <path d="M633,279 V289" stroke="#6b7280" stroke-width="1.2"/>
+  <circle cx="624" cy="284" r="3.5" fill="#0b0f17" stroke="#6b7280" stroke-width="1.2"/>
+
+  <!-- fact_timesheet -->
+  <rect x="320" y="30" width="260" height="298" rx="10" fill="#111827" stroke="#eab308" stroke-width="1.2"/>
+  <text x="450" y="60" text-anchor="middle" fill="#eab308" font-size="18" font-weight="600">fact_timesheet</text>
+  <text x="334" y="94" fill="#9ca3af" font-size="10" font-weight="600">PK FK</text>
+  <text x="374" y="94" fill="#d1d5db" font-size="13">employee_key</text>
+  <text x="334" y="114" fill="#9ca3af" font-size="10" font-weight="600">PK</text>
+  <text x="374" y="114" fill="#d1d5db" font-size="13">punch_in_datetime</text>
+  <text x="334" y="134" fill="#9ca3af" font-size="10" font-weight="600">FK</text>
+  <text x="374" y="134" fill="#d1d5db" font-size="13">date_key</text>
+  <text x="334" y="154" fill="#9ca3af" font-size="10" font-weight="600">FK</text>
+  <text x="374" y="154" fill="#d1d5db" font-size="13">department_key</text>
+  <text x="334" y="174" fill="#9ca3af" font-size="10" font-weight="600">FK</text>
+  <text x="374" y="174" fill="#d1d5db" font-size="13">home_department_key</text>
+  <text x="374" y="194" fill="#7c8799" font-size="13">punch_out_datetime</text>
+  <text x="374" y="214" fill="#7c8799" font-size="13">scheduled_start_datetime</text>
+  <text x="374" y="234" fill="#7c8799" font-size="13">scheduled_end_datetime</text>
+  <text x="374" y="254" fill="#7c8799" font-size="13">hours_worked</text>
+  <text x="374" y="274" fill="#7c8799" font-size="13">has_schedule</text>
+  <text x="374" y="294" fill="#7c8799" font-size="13">is_worked</text>
+  <text x="374" y="314" fill="#7c8799" font-size="13">is_incomplete</text>
+  <!-- dim_employee -->
+  <rect x="30" y="70" width="240" height="218" rx="10" fill="#111827" stroke="#6b7280" stroke-width="1.2"/>
+  <text x="150" y="100" text-anchor="middle" fill="#9ca3af" font-size="18" font-weight="600">dim_employee</text>
+  <text x="44" y="134" fill="#9ca3af" font-size="10" font-weight="600">PK</text>
+  <text x="84" y="134" fill="#d1d5db" font-size="13">employee_key</text>
+  <text x="44" y="154" fill="#9ca3af" font-size="10" font-weight="600">UK</text>
+  <text x="84" y="154" fill="#d1d5db" font-size="13">client_employee_id</text>
+  <text x="84" y="174" fill="#7c8799" font-size="13">job_title</text>
+  <text x="84" y="194" fill="#7c8799" font-size="13">department_name</text>
+  <text x="84" y="214" fill="#7c8799" font-size="13">recent_hire_date</text>
+  <text x="84" y="234" fill="#7c8799" font-size="13">term_date</text>
+  <text x="84" y="254" fill="#7c8799" font-size="13">is_inferred</text>
+  <text x="84" y="274" fill="#7c8799" font-size="13">is_deleted</text>
+  <!-- dim_date -->
+  <rect x="640" y="30" width="230" height="158" rx="10" fill="#111827" stroke="#6b7280" stroke-width="1.2"/>
+  <text x="755" y="60" text-anchor="middle" fill="#9ca3af" font-size="18" font-weight="600">dim_date</text>
+  <text x="654" y="94" fill="#9ca3af" font-size="10" font-weight="600">PK</text>
+  <text x="694" y="94" fill="#d1d5db" font-size="13">date_key</text>
+  <text x="654" y="114" fill="#9ca3af" font-size="10" font-weight="600">UK</text>
+  <text x="694" y="114" fill="#d1d5db" font-size="13">full_date</text>
+  <text x="694" y="134" fill="#7c8799" font-size="13">year</text>
+  <text x="694" y="154" fill="#7c8799" font-size="13">month</text>
+  <text x="694" y="174" fill="#7c8799" font-size="13">is_weekend</text>
+  <!-- dim_department -->
+  <rect x="640" y="224" width="230" height="118" rx="10" fill="#111827" stroke="#6b7280" stroke-width="1.2"/>
+  <text x="755" y="254" text-anchor="middle" fill="#9ca3af" font-size="18" font-weight="600">dim_department</text>
+  <text x="654" y="288" fill="#9ca3af" font-size="10" font-weight="600">PK</text>
+  <text x="694" y="288" fill="#d1d5db" font-size="13">department_key</text>
+  <text x="654" y="308" fill="#9ca3af" font-size="10" font-weight="600">UK</text>
+  <text x="694" y="308" fill="#d1d5db" font-size="13">department_id</text>
+  <text x="694" y="328" fill="#7c8799" font-size="13">department_label</text>
+</svg>

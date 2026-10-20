@@ -7,6 +7,7 @@ End-to-end ELT pipeline for employee and timesheet data: MinIO → Postgres (bro
 ## Docs
 
 - [Setup](docs/setup.md)
+- [Schema](docs/schema.md)
 - [Assumptions](docs/assumptions.md)
 - [KPIs](docs/kpis.md)
 - [Data quality](docs/quality.md) · [sample report](docs/sample_report.md)

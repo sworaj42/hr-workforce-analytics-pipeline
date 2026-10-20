@@ -31,15 +31,14 @@ x-airflow-common: &airflow-common
     MINIO_ROOT_USER: ${MINIO_ROOT_USER}
     MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     MINIO_BUCKET: ${MINIO_BUCKET}
-    # Where bronze reads files from: minio (default) or local
-    SOURCE: ${SOURCE:-minio}
+    # Folder read when the DAG runs with source = local
     LOCAL_DATA_DIR: /opt/airflow/data
     INCREMENTAL_WINDOW_DAYS: ${INCREMENTAL_WINDOW_DAYS}
     DQ_MAX_REJECT_PCT: ${DQ_MAX_REJECT_PCT:-1}
   volumes:
     - ./dags:/opt/airflow/dags
     - ./pipeline:/opt/airflow/pipeline
-    # Source files for SOURCE=local, read-only like minio-init's mount
+    # Source files for source = local, read-only like minio-init's mount
     - ./data:/opt/airflow/data:ro
     # Run reports land in the project folder
     - ./reports:/opt/airflow/reports

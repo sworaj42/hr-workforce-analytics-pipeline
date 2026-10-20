@@ -1,6 +1,6 @@
 """
 Land raw source files in the bronze layer, from the MinIO landing bucket
-(SOURCE=minio, the default) or from a local folder (SOURCE=local).
+(source "minio", the default) or from a local folder (source "local").
 
 Each file is streamed straight into Postgres. For each file: COPY it into a
 temp table, delete any rows previously loaded
@@ -9,10 +9,11 @@ from the same file, and insert the new rows with lineage metadata
 file, so a rerun never duplicates rows and a failure leaves the previous load
 untouched.
 
-Run from the project root:  python -m pipeline.load_bronze
-In Airflow: dags/hr_pipeline.py calls load_all_files().
+Run from the project root:  python -m pipeline.load_bronze [--source local]
+In Airflow: dags/hr_pipeline.py calls load_all_files() with the run's source param.
 """
 
+import argparse
 import logging
 import os
 import re
@@ -28,7 +29,6 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-SOURCE = os.getenv("SOURCE", "minio")
 BUCKET = os.getenv("MINIO_BUCKET")
 LOCAL_DATA_DIR = os.getenv("LOCAL_DATA_DIR", "data")
 
@@ -163,14 +163,14 @@ def local_files():
             yield path.name, file_obj
 
 
-def load_all_files():
+def load_all_files(source="minio"):
     """Load every source CSV into bronze, one transaction per file."""
-    if SOURCE == "minio":
+    if source == "minio":
         files, where = minio_files(), f"bucket '{BUCKET}'"
-    elif SOURCE == "local":
+    elif source == "local":
         files, where = local_files(), f"folder '{LOCAL_DATA_DIR}'"
     else:
-        raise ValueError(f"SOURCE must be 'minio' or 'local', got '{SOURCE}'")
+        raise ValueError(f"source must be 'minio' or 'local', got '{source}'")
 
     logger.info(f"Loading files from {where}")
     loaded = 0
@@ -188,6 +188,17 @@ def load_all_files():
     logger.info(f"Bronze load finished: {loaded} file(s) from {where}")
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Load source files into bronze")
+    parser.add_argument(
+        "--source",
+        choices=["minio", "local"],
+        default="minio",
+        help="Read files from the MinIO bucket (default) or from LOCAL_DATA_DIR",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
     # Logging is configured only when run as a script; under Airflow the task
     # runner sets up logging and this module's logger feeds into it.
@@ -195,4 +206,4 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s  %(levelname)s [%(filename)s:%(lineno)d] %(message)s",
     )
-    load_all_files()
+    load_all_files(parse_args().source)

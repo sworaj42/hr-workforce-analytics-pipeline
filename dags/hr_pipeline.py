@@ -18,6 +18,11 @@ from airflow.sdk import Param, dag, task
             type="boolean",
             description="Truncate-reload the timesheet tables instead of the default incremental load",
         ),
+        "source": Param(
+            "minio",
+            enum=["minio", "local"],
+            description="Where bronze reads the source files from: the MinIO bucket or the mounted data/ folder",
+        ),
     },
     default_args={
         # Safe to retry: every step replaces its data, so a rerun never duplicates rows.
@@ -27,11 +32,11 @@ from airflow.sdk import Param, dag, task
 )
 def hr_pipeline():
     @task
-    def load_bronze():
+    def load_bronze(**context):
         # Imported here so DAG parsing stays light.
         from pipeline.load_bronze import load_all_files
 
-        load_all_files()
+        load_all_files(context["params"]["source"])
 
     # Module import because the task and the function share a name.
     @task

@@ -75,13 +75,19 @@ with hours_tab:
                "Punches with no department are left out of the bar chart.")
 
 with attendance_tab:
+    top = attendance.nlargest(15, "scheduled_shifts")
+    # Rates, so busy and quiet departments compare fairly
+    for name, col in [("Late arrivals", "late_arrivals"),
+                      ("Early departures", "early_departures"),
+                      ("Overtime", "overtime_shifts")]:
+        top[name] = (top[col] / top["scheduled_shifts"] * 100).round(1)
     st.plotly_chart(px.bar(
-        attendance.nlargest(15, "scheduled_shifts"), x="department",
-        y=["late_arrivals", "early_departures", "overtime_shifts"],
-        barmode="group",
+        top, x=["Late arrivals", "Early departures", "Overtime"], y="department",
+        orientation="h", barmode="group", height=800,
         title="Late arrivals, early departures and overtime by department "
-              "(top 15 by scheduled shifts)",
-        labels={"department": "Department", "value": "Shifts", "variable": "Measure"},
-    ))
+              "(% of scheduled shifts, top 15 by scheduled shifts)",
+        labels={"department": "Department", "value": "% of scheduled shifts",
+                "variable": "Measure"},
+    ).update_yaxes(autorange="reversed"))
     st.caption("Scheduled shifts only (~42% of punches). "
                "Shifts with no department are left out.")

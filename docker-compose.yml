@@ -222,7 +222,7 @@ services:
     image: hr-api
     container_name: hr_api
     # Seed the API users (upsert, safe on every start), then serve
-    command: sh -c "python -m api.seed_users && uvicorn api.main:app --host 0.0.0.0 --port 8000"
+    command: sh -c "python -m api.seed_users && uvicorn api.main:app --host 0.0.0.0 --port 8000 --no-access-log"
     environment:
       # Service name on the Docker network, not the host port
       POSTGRES_HOST: warehouse-db

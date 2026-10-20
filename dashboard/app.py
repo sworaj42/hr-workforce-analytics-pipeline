@@ -82,11 +82,10 @@ with workforce_tab:
     st.plotly_chart(px.bar(
         tenure.sort_values("avg_tenure_years"), x="avg_tenure_years",
         y="department_name", orientation="h", hover_data=["employees"],
-        text="employees",
         height=800, title="Average tenure by department",
         labels={"avg_tenure_years": "Years", "department_name": "Department",
                 "employees": "Employees"},
-    ).update_traces(textposition="outside"))
+    ))
     st.caption("29 of 38 departments have one employee; "
                "read with the employee count.")
 

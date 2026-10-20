@@ -1,4 +1,4 @@
-# HR Workforce Pipeline
+# HR Workforce Analytics Pipeline
 
 An end-to-end ELT pipeline for hospital workforce data. Raw employee and timesheet extracts land in MinIO, are loaded and cleaned through bronze, silver, and gold layers in PostgreSQL under Airflow orchestration, and are served through a FastAPI service and a Streamlit dashboard. Everything runs in Docker.
 
@@ -33,7 +33,7 @@ Configuration, options and troubleshooting: [docs/setup.md](docs/setup.md)
 |---|---|
 | Landing zone | MinIO (S3-compatible) |
 | Warehouse | PostgreSQL 16 |
-| Orchestration | Apache Airflow 3.x (LocalExecutor) |
+| Orchestration | Apache Airflow 3.3 (LocalExecutor) |
 | Transformations | SQL inside Postgres, run from Python (`psycopg2`) |
 | Migrations | Numbered SQL files, applied automatically on start |
 | API | FastAPI, JWT login (PyJWT, bcrypt) |
@@ -53,13 +53,6 @@ Configuration, options and troubleshooting: [docs/setup.md](docs/setup.md)
   loaded, steps back 30 days (configurable), deletes that window and
   reloads it from the layer below; `full_reload = true` rebuilds
   everything instead.
-- **Layout check:** a source file whose header doesn't match the table
-  fails instead of loading shifted columns.
-- **Rejects, not drops:** invalid rows go to a rejects table with their
-  original values and the rule they broke.
-- **Inferred employees:** the timesheets name 10,773 employees but the file
-  has 50; each missing one gets a placeholder row, so every punch has an
-  employee.
 - **Lineage:** every punch and employee traces back to its source file and
   line.
 - **Quality checks and reports:** six checks run after every load, with

@@ -154,6 +154,31 @@ leaves a record.
 The DAG only calls functions in `pipeline/`, so every step also runs
 without Airflow.
 
+## API
+
+A FastAPI service at http://localhost:8000 (interactive docs at `/docs`),
+reading and writing silver directly with SQL.
+
+| Method | Path | Role | What it does |
+|---|---|---|---|
+| `POST` | `/auth/token` | none | Log in, returns a token |
+| `GET` | `/employees`, `/employees/{id}` | viewer | List employees, or one |
+| `POST` | `/employees` | admin | Create an employee |
+| `PATCH` | `/employees/{id}` | admin | Update only the fields sent |
+| `DELETE` | `/employees/{id}` | admin | Soft delete |
+| `GET` | `/timesheets` | viewer | Timesheets, filterable by employee and date range |
+| `GET` | `/employees/{id}/timesheets` | viewer | One employee's timesheets |
+
+**Auth:** log in for a JWT token. `viewer` can read; `admin` can also
+write. No token returns 401, a write as `viewer` returns 403.
+
+**Writes survive the pipeline:** API-created employees and edits are kept
+by normal runs; deletes only flag the row, so it stays out of the HR KPIs
+without breaking past timesheets. A full reload resets employees to the
+source file.
+
+Endpoints, validation, logging and curl examples: [docs/api.md](docs/api.md)
+
 ## Dashboard
 
 Three tabs at http://localhost:8501, reading gold's KPI views. Every chart

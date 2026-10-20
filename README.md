@@ -27,6 +27,20 @@ A run takes under a minute; then refresh the dashboard.
 
 Configuration, options and troubleshooting: [docs/setup.md](docs/setup.md)
 
+## Tech stack
+
+| Part | Tool |
+|---|---|
+| Landing zone | MinIO (S3-compatible) |
+| Warehouse | PostgreSQL 16 |
+| Orchestration | Apache Airflow 3.x (LocalExecutor) |
+| Transformations | SQL inside Postgres, run from Python (`psycopg2`) |
+| Migrations | Numbered SQL files, applied automatically on start |
+| API | FastAPI, JWT login (PyJWT, bcrypt) |
+| Dashboard | Streamlit, Plotly, pandas |
+| Tests | pytest |
+| Runtime | Docker Compose |
+
 ## Medallion layers
 
 One PostgreSQL database with a schema per layer. Bronze keeps the files as

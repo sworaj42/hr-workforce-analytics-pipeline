@@ -53,6 +53,9 @@ with workforce_tab:
     col4.metric("Early attrition, 90 days (all employees)",
                 f"{attrition['early_attrition_rate_pct'].iloc[0]}%")
 
+    st.caption("Cards cover the full data period; the date range below "
+               "applies only to the charts.")
+
     start, end = date_filter("workforce_dates", headcount["as_of_date"].iloc[0], last_day)
 
     st.plotly_chart(px.line(
@@ -100,6 +103,9 @@ with hours_tab:
     col2.metric(f"Employees with worked hours ({period})", f"{len(per_employee):,}")
     col3.metric(f"Total worked hours ({period})", f"{total_hours:,.0f}")
 
+    st.caption("Cards cover the full data period; the date range below "
+               "applies only to the charts.")
+
     start, end = date_filter("hours_dates", first_day, last_day)
 
     st.plotly_chart(px.line(
@@ -141,6 +147,9 @@ with attendance_tab:
     col3.metric(f"Overtime hours ({period})",
                 f"{overtime['overtime_hours'].sum():,.0f}")
     col4.metric(f"Double shift share ({period})", f"{double_share:.2f}%")
+
+    st.caption("Cards cover the full data period; the date range below "
+               "applies only to the charts.")
 
     start, end = date_filter("attendance_dates", long_shifts["month"].iloc[0],
                              long_shifts["month"].iloc[-1])

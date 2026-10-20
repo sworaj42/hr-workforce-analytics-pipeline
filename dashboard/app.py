@@ -82,10 +82,11 @@ with workforce_tab:
     st.plotly_chart(px.bar(
         tenure.sort_values("avg_tenure_years"), x="avg_tenure_years",
         y="department_name", orientation="h", hover_data=["employees"],
+        text="employees",
         height=800, title="Average tenure by department",
         labels={"avg_tenure_years": "Years", "department_name": "Department",
                 "employees": "Employees"},
-    ))
+    ).update_traces(textposition="outside"))
     st.caption("29 of 38 departments have one employee; "
                "read with the employee count.")
 
@@ -104,6 +105,21 @@ with hours_tab:
                "Punches with no department are left out of the bar chart.")
 
 with attendance_tab:
+    # Cards use the full data, not the date filter
+    late = load("kpi_late_arrivals")
+    early = load("kpi_early_departures")
+    overtime = load("kpi_overtime")
+    long_shifts = load("kpi_long_shifts")
+
+    late_rate = late["late_arrivals"].sum() / late["scheduled_shifts"].sum() * 100
+    double_share = long_shifts["double_shifts"].sum() / long_shifts["worked_shifts"].sum() * 100
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Late arrival rate", f"{late_rate:.1f}%")
+    col2.metric("Early departure days", f"{early['early_departure_days'].sum():,}")
+    col3.metric("Overtime hours", f"{overtime['overtime_hours'].sum():,.0f}")
+    col4.metric("Double shift share", f"{double_share:.2f}%")
+
     top = attendance.nlargest(15, "scheduled_shifts")
     # Rates, so busy and quiet departments compare fairly
     for name, col in [("Late arrivals", "late_arrivals"),
@@ -120,3 +136,15 @@ with attendance_tab:
     ).update_yaxes(autorange="reversed"))
     st.caption("Scheduled shifts only (~42% of punches). "
                "Shifts with no department are left out.")
+
+    monthly = long_shifts[long_shifts["month"].between(start, end)]
+    fig = px.bar(
+        monthly, x="month", y="double_shifts",
+        title="Double shifts (over 16 hours) per month",
+        labels={"month": "Month", "double_shifts": "Double shifts"},
+    )
+    # Whole numbers only
+    fig.update_yaxes(tickformat="d")
+    st.plotly_chart(fig)
+    st.caption("Jul-Sep 2025: low-volume data gap, so the drop is missing "
+               "data, not fewer double shifts.")

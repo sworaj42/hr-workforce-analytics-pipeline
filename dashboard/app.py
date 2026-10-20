@@ -143,15 +143,13 @@ with attendance_tab:
     late_rate = late["late_arrivals"].sum() / late["scheduled_shifts"].sum() * 100
     double_share = long_shifts["double_shifts"].sum() / long_shifts["worked_shifts"].sum() * 100
 
-    # Same timesheet period as the Working hours tab
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric(f"Late arrival rate ({period})", f"{late_rate:.1f}%")
-    col2.metric(f"Early departure days ({period})",
-                f"{early['early_departure_days'].sum():,}")
-    col3.metric(f"Overtime hours ({period})",
-                f"{overtime['overtime_hours'].sum():,.0f}")
-    col4.metric(f"Double shift share ({period})", f"{double_share:.2f}%")
-    st.caption(CARDS_NOTE)
+    col1.metric("Late arrival rate", f"{late_rate:.1f}%")
+    col2.metric("Early departure days", f"{early['early_departure_days'].sum():,}")
+    col3.metric("Overtime hours", f"{overtime['overtime_hours'].sum():,.0f}")
+    col4.metric("Double shift share", f"{double_share:.2f}%")
+    # Same timesheet period as the Working hours tab
+    st.caption(f"Cards cover {period} and are not affected by the date range.")
 
     start, end = date_filter("attendance_dates", long_shifts["month"].iloc[0],
                              long_shifts["month"].iloc[-1])

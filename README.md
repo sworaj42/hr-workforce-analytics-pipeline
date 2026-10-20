@@ -46,6 +46,8 @@ Each row also records its `source_file`, `source_row_num` and `loaded_at`.
 
 ### Gold: star schema for analysis
 
+![Gold star schema](docs/gold_schema.svg)
+
 | Table | Purpose |
 |---|---|
 | `gold.fact_timesheet` | One row per punch: keys to the dimensions, times, hours, flags |
@@ -62,8 +64,6 @@ Each row also records its `source_file`, `source_row_num` and `loaded_at`.
 - **Fact:** each punch gets its dimension keys and an `is_worked` flag
   (time-off bookings aren't worked time).
 - **KPI views** are plain SQL views, always in step with the tables.
-
-Full column lists and the ERD: [docs/schema.md](docs/schema.md)
 
 ## Docs
 

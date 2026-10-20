@@ -87,6 +87,8 @@ with workforce_tab:
     # One tick per month, shown as month and year
     fig.update_xaxes(dtick="M1", tickformat="%b %Y", hoverformat="%b %Y")
     st.plotly_chart(fig)
+    st.caption("Terminations are recorded from October 2024 onward; earlier "
+               "leavers are missing from the source file.")
 
 with hours_tab:
     hours = load("kpi_rolling_avg_working_hours").sort_values("work_date")

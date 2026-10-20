@@ -38,6 +38,10 @@ headcount = headcount[headcount["as_of_date"].between(start, end)]
 turnover = turnover[turnover["month"].between(start, end)]
 hours = hours[hours["work_date"].between(start, end)]
 
+# Too big to compare with real departments
+dept_hours = dept_hours[dept_hours["department"] != "No department"]
+attendance = attendance[attendance["department"] != "No department"]
+
 workforce_tab, hours_tab, attendance_tab = st.tabs(
     ["Workforce", "Working hours", "Attendance"]
 )
@@ -67,7 +71,8 @@ with hours_tab:
         orientation="h", title="Total hours by department (top 15)",
         labels={"total_hours": "Hours", "department": "Department"},
     ).update_yaxes(categoryorder="total ascending"))
-    st.caption("Jul-Sep 2025: low-volume data gap, not a real drop.")
+    st.caption("Jul-Sep 2025: low-volume data gap, not a real drop. "
+               "Punches with no department are left out of the bar chart.")
 
 with attendance_tab:
     st.plotly_chart(px.bar(
@@ -78,4 +83,5 @@ with attendance_tab:
               "(top 15 by scheduled shifts)",
         labels={"department": "Department", "value": "Shifts", "variable": "Measure"},
     ))
-    st.caption("Scheduled shifts only (~42% of punches).")
+    st.caption("Scheduled shifts only (~42% of punches). "
+               "Shifts with no department are left out.")

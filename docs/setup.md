@@ -16,6 +16,8 @@ Needs Docker with Docker Compose.
 3. Run the pipeline: in Airflow (http://localhost:8080), trigger `hr_pipeline`.
    The first run loads everything; later runs reload the last
    `INCREMENTAL_WINDOW_DAYS` (trigger with `full_reload` = true to reload all).
+   Files are read from MinIO by default; set `SOURCE=local` in `.env` to read
+   them straight from `data/` instead (restart Airflow after changing it).
 
 | Service | URL |
 |---|---|

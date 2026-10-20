@@ -1,20 +1,23 @@
 """
-Land raw source files from the MinIO landing bucket in the bronze layer.
+Land raw source files in the bronze layer, from the MinIO landing bucket
+(SOURCE=minio, the default) or from a local folder (SOURCE=local).
 
-Each object is streamed from MinIO straight into Postgres; nothing is written
-to local disk. For each file: COPY it into a temp table, delete any rows previously loaded
+Each file is streamed straight into Postgres. For each file: COPY it into a
+temp table, delete any rows previously loaded
 from the same file, and insert the new rows with lineage metadata
 (source_file, source_row_num). All of that happens in one transaction per
 file, so a rerun never duplicates rows and a failure leaves the previous load
 untouched.
 
 Run from the project root:  python -m pipeline.load_bronze
-In Airflow: dags/bronze.py calls load_all_files().
+In Airflow: dags/hr_pipeline.py calls load_all_files().
 """
 
 import logging
 import os
+import re
 import time
+from pathlib import Path
 
 from dotenv import load_dotenv
 from minio import Minio
@@ -25,13 +28,17 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+SOURCE = os.getenv("SOURCE", "minio")
 BUCKET = os.getenv("MINIO_BUCKET")
+LOCAL_DATA_DIR = os.getenv("LOCAL_DATA_DIR", "data")
 
-# File name prefix -> bronze table it lands in
+# Source name -> bronze table it lands in
 TARGET_TABLES = {
-    "employee_": "bronze.employee_raw",
-    "timesheet_": "bronze.timesheet_raw",
+    "employee": "bronze.employee_raw",
+    "timesheet": "bronze.timesheet_raw",
 }
+# e.g. timesheet_202509151540.csv (extraction time YYYYMMDDHHMM)
+FILE_NAME = re.compile(rf"^({'|'.join(TARGET_TABLES)})_\d{{12}}\.csv$")
 
 
 def get_minio_client() -> Minio:
@@ -44,10 +51,10 @@ def get_minio_client() -> Minio:
 
 
 def target_table_for(file_name: str) -> str:
-    for prefix, table in TARGET_TABLES.items():
-        if file_name.startswith(prefix):
-            return table
-    raise ValueError(f"No bronze table configured for file '{file_name}'")
+    match = FILE_NAME.match(file_name)
+    if not match:
+        raise ValueError(f"'{file_name}' does not match <table>_YYYYMMDDHHMM.csv")
+    return TARGET_TABLES[match.group(1)]
 
 
 def read_header(file_obj) -> list:
@@ -130,34 +137,55 @@ def load_file(conn, file_obj, file_name: str) -> int:
     return loaded
 
 
-def load_all_files():
-    """Load every CSV in the landing bucket into bronze, one transaction per file."""
+def minio_files():
+    """Yield (name, file object) for each CSV in the landing bucket, oldest first."""
     client = get_minio_client()
     names = sorted(
         obj.object_name
         for obj in client.list_objects(BUCKET)
         if obj.object_name.endswith(".csv")
     )
-    if not names:
-        raise FileNotFoundError(f"No CSV files found in bucket '{BUCKET}'")
+    for name in names:
+        # get_object returns a streaming HTTP response; COPY reads from it
+        # in chunks, so the file is never held in memory as a whole.
+        response = client.get_object(BUCKET, name)
+        try:
+            yield name, response
+        finally:
+            response.close()
+            response.release_conn()
 
-    logger.info(f"Loading {len(names)} file(s) from bucket '{BUCKET}'")
+
+def local_files():
+    """Yield (name, file object) for each CSV in LOCAL_DATA_DIR, oldest first."""
+    for path in sorted(Path(LOCAL_DATA_DIR).glob("*.csv")):
+        with open(path, "rb") as file_obj:
+            yield path.name, file_obj
+
+
+def load_all_files():
+    """Load every source CSV into bronze, one transaction per file."""
+    if SOURCE == "minio":
+        files, where = minio_files(), f"bucket '{BUCKET}'"
+    elif SOURCE == "local":
+        files, where = local_files(), f"folder '{LOCAL_DATA_DIR}'"
+    else:
+        raise ValueError(f"SOURCE must be 'minio' or 'local', got '{SOURCE}'")
+
+    logger.info(f"Loading files from {where}")
+    loaded = 0
     conn = get_connection()
     try:
-        for name in names:
+        for name, file_obj in files:
             start = time.time()
-            # get_object returns a streaming HTTP response; COPY reads from it
-            # in chunks, so the file is never held in memory as a whole.
-            response = client.get_object(BUCKET, name)
-            try:
-                load_file(conn, response, name)
-            finally:
-                response.close()
-                response.release_conn()
+            load_file(conn, file_obj, name)
+            loaded += 1
             logger.info(f"  took {time.time() - start:.1f}s")
     finally:
         conn.close()
-    logger.info("Bronze load finished")
+    if loaded == 0:
+        raise FileNotFoundError(f"No CSV files found in {where}")
+    logger.info(f"Bronze load finished: {loaded} file(s) from {where}")
 
 
 if __name__ == "__main__":

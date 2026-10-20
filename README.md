@@ -193,6 +193,41 @@ showing a data gap or odd pattern explains it in its caption.
 **Attendance:** late arrivals, early departures, overtime and double shifts
 ![Attendance tab](docs/screenshots/attendance.png)
 
+## Project structure
+
+```
+├── data/                     Source extracts (1 employee file, 4 timesheet files)
+├── migrations/               Timestamped SQL: schemas, tables, KPI views, indexes
+├── pipeline/                 Pipeline steps, each also runs from the command line
+│   ├── load_bronze.py        MinIO or data/ → bronze (COPY)
+│   ├── build_silver.py       bronze → silver: clean, validate, deduplicate
+│   ├── build_gold.py         silver → gold: dimensions and fact table
+│   ├── quality.py            Data quality checks
+│   ├── report.py             Markdown run report
+│   ├── migrate.py            Applies migrations/ in order
+│   ├── db.py                 Database connection from .env
+│   └── sql/                  Silver build SQL
+├── dags/
+│   └── hr_pipeline.py        Airflow DAG: calls the steps in pipeline/
+├── api/                      FastAPI service
+│   ├── Dockerfile            Image for the API, dashboard and migrations
+│   ├── main.py               App, routers, request logging
+│   ├── auth.py               JWT login and roles
+│   ├── schemas.py            Request validation
+│   ├── seed_users.py         Creates admin and viewer at startup
+│   └── routes/               auth, employees, timesheets
+├── dashboard/
+│   └── app.py                Streamlit dashboard
+├── tests/
+│   └── test_api.py           API tests (pytest)
+├── docs/                     Setup, schema, KPIs, quality, API, diagrams
+├── reports/                  Run reports, written by the pipeline (not committed)
+├── docker-compose.yml        The whole stack
+├── Dockerfile                Airflow image with the pipeline's packages
+├── requirements.txt          Pinned Python packages
+└── .env.example              Settings; copy to .env
+```
+
 ## Docs
 
 - [Setup](docs/setup.md)

@@ -56,6 +56,19 @@ with workforce_tab:
                 f"{attrition['early_attrition_rate_pct'].iloc[0]}%")
     st.caption(CARDS_NOTE)
 
+    # A one-person department average is just that person's tenure
+    shared = tenure[tenure["employees"] >= 2]
+    st.plotly_chart(px.bar(
+        shared.sort_values("avg_tenure_years"), x="avg_tenure_years",
+        y="department_name", orientation="h", hover_data=["employees"],
+        title="Average tenure by department (2 or more employees)",
+        labels={"avg_tenure_years": "Years", "department_name": "Department",
+                "employees": "Employees"},
+    ))
+    st.caption(f"Static snapshot on {last_day:%d %b %Y}, not affected by the "
+               f"date range. Departments with one employee "
+               f"({len(tenure) - len(shared)} of {len(tenure)}) are left out.")
+
     start, end = date_filter("workforce_dates", headcount["as_of_date"].iloc[0], last_day)
     st.plotly_chart(px.line(
         headcount[headcount["as_of_date"].between(start, end)],
@@ -74,16 +87,6 @@ with workforce_tab:
     # One tick per month, shown as month and year
     fig.update_xaxes(dtick="M1", tickformat="%b %Y", hoverformat="%b %Y")
     st.plotly_chart(fig)
-
-    st.plotly_chart(px.bar(
-        tenure.sort_values("avg_tenure_years"), x="avg_tenure_years",
-        y="department_name", orientation="h", hover_data=["employees"],
-        height=800, title="Average tenure by department",
-        labels={"avg_tenure_years": "Years", "department_name": "Department",
-                "employees": "Employees"},
-    ))
-    st.caption("29 of 38 departments have one employee; "
-               "read with the employee count.")
 
 with hours_tab:
     hours = load("kpi_rolling_avg_working_hours").sort_values("work_date")

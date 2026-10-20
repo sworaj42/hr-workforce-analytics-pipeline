@@ -20,60 +20,52 @@ def load(view):
         conn.close()
 
 
+def date_filter(key, first, last):
+    dates = st.date_input("Date range", value=(first, last), key=key)
+    # While picking, only the start date is set
+    return dates[0], dates[-1]
+
+
 st.set_page_config(page_title="HR Workforce Dashboard", layout="wide")
 st.title("HR Workforce Dashboard")
-
-headcount = load("kpi_active_headcount")
-turnover = load("kpi_turnover_trend")
-hours = load("kpi_rolling_avg_working_hours")
-dept_hours = load("kpi_hours_by_department")
-attendance = load("kpi_attendance_by_department")
-
-# Applies to the time charts only
-start, end = st.date_input(
-    "Date range",
-    value=(headcount["as_of_date"].min(), headcount["as_of_date"].max()),
-)
-headcount = headcount[headcount["as_of_date"].between(start, end)]
-turnover = turnover[turnover["month"].between(start, end)]
-hours = hours[hours["work_date"].between(start, end)]
-
-# Too big to compare with real departments
-dept_hours = dept_hours[dept_hours["department"] != "No department"]
-attendance = attendance[attendance["department"] != "No department"]
 
 workforce_tab, hours_tab, attendance_tab = st.tabs(
     ["Workforce", "Working hours", "Attendance"]
 )
 
 with workforce_tab:
-    # Cards use the full data, not the date filter
-    all_headcount = load("kpi_active_headcount").sort_values("as_of_date")
-    all_turnover = load("kpi_turnover_trend")
+    headcount = load("kpi_active_headcount").sort_values("as_of_date")
+    turnover = load("kpi_turnover_trend").sort_values("month")
     tenure = load("kpi_avg_tenure_by_department")
     attrition = load("kpi_early_attrition_rate")
 
+    last_day = headcount["as_of_date"].iloc[-1]
+    first_month = turnover["month"].iloc[0]
+    last_month = turnover["month"].iloc[-1]
     # Weighted by employees, so big departments count more
     avg_tenure = (tenure["avg_tenure_years"] * tenure["employees"]).sum() / tenure["employees"].sum()
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Current headcount", all_headcount["active_count"].iloc[-1])
-    col2.metric("Total terminations", all_turnover["terminations"].sum())
-    col3.metric("Average tenure (years)", f"{avg_tenure:.1f}")
-    col4.metric("Early attrition (90 days)",
+    col1.metric(f"Headcount on {last_day:%d %b %Y}", headcount["active_count"].iloc[-1])
+    col2.metric(f"Terminations ({first_month:%b %Y} – {last_month:%b %Y})",
+                turnover["terminations"].sum())
+    col3.metric("Average tenure, years (all employees on file)", f"{avg_tenure:.1f}")
+    col4.metric("Early attrition, 90 days (all employees)",
                 f"{attrition['early_attrition_rate_pct'].iloc[0]}%")
 
+    start, end = date_filter("workforce_dates", headcount["as_of_date"].iloc[0], last_day)
+
     st.plotly_chart(px.line(
-        headcount, x="as_of_date", y="active_count",
-        title="Active headcount over time",
+        headcount[headcount["as_of_date"].between(start, end)],
+        x="as_of_date", y="active_count", title="Active headcount over time",
         labels={"as_of_date": "Date", "active_count": "Active employees"},
     ))
     st.caption("Before Oct 2024, earlier leavers are missing from the file, "
                "so headcount is undercounted.")
 
     fig = px.bar(
-        turnover, x="month", y=["voluntary", "involuntary"],
-        title="Terminations by month",
+        turnover[turnover["month"].between(start, end)],
+        x="month", y=["voluntary", "involuntary"], title="Terminations by month",
         labels={"month": "Month", "value": "Terminations", "variable": "Type"},
     )
     fig.update_yaxes(dtick=1)
@@ -90,22 +82,29 @@ with workforce_tab:
                "read with the employee count.")
 
 with hours_tab:
-    # Cards use the full data, not the date filter
+    hours = load("kpi_rolling_avg_working_hours").sort_values("work_date")
     per_employee = load("kpi_avg_working_hours")
-    all_dept_hours = load("kpi_hours_by_department")
+    dept_hours = load("kpi_hours_by_department")
 
-    total_hours = all_dept_hours["total_hours"].sum()
+    first_day = hours["work_date"].iloc[0]
+    last_day = hours["work_date"].iloc[-1]
+    period = f"{first_day:%d %b} – {last_day:%d %b %Y}"
+    total_hours = dept_hours["total_hours"].sum()
     employee_days = per_employee["days_worked"].sum()
-    no_dept_hours = all_dept_hours.loc[
-        all_dept_hours["department"] == "No department", "total_hours"].sum()
+    no_dept_hours = dept_hours.loc[
+        dept_hours["department"] == "No department", "total_hours"].sum()
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("Avg hours per worked day", f"{total_hours / employee_days:.2f}")
-    col2.metric("Employees with worked hours", f"{len(per_employee):,}")
-    col3.metric("Total worked hours", f"{total_hours:,.0f}")
+    col1.metric(f"Avg hours per worked day ({period})",
+                f"{total_hours / employee_days:.2f}")
+    col2.metric(f"Employees with worked hours ({period})", f"{len(per_employee):,}")
+    col3.metric(f"Total worked hours ({period})", f"{total_hours:,.0f}")
+
+    start, end = date_filter("hours_dates", first_day, last_day)
 
     st.plotly_chart(px.line(
-        hours, x="work_date", y="rolling_7d_avg_hours",
+        hours[hours["work_date"].between(start, end)],
+        x="work_date", y="rolling_7d_avg_hours",
         title="Average working hours per employee (7-day rolling)",
         labels={"work_date": "Date", "rolling_7d_avg_hours": "Hours"},
     ))
@@ -113,8 +112,10 @@ with hours_tab:
                "appear as straight segments). The spike around 14 Sep is the "
                "switch to the new timekeeping system.")
 
+    # Too big to compare with real departments
+    with_dept = dept_hours[dept_hours["department"] != "No department"]
     st.plotly_chart(px.bar(
-        dept_hours.nlargest(15, "total_hours"), x="total_hours", y="department",
+        with_dept.nlargest(15, "total_hours"), x="total_hours", y="department",
         orientation="h", title="Total hours by department (top 15)",
         labels={"total_hours": "Hours", "department": "Department"},
     ).update_yaxes(categoryorder="total ascending"))
@@ -123,22 +124,41 @@ with hours_tab:
                "with no department in the source.")
 
 with attendance_tab:
-    # Cards use the full data, not the date filter
     late = load("kpi_late_arrivals")
     early = load("kpi_early_departures")
     overtime = load("kpi_overtime")
-    long_shifts = load("kpi_long_shifts")
+    long_shifts = load("kpi_long_shifts").sort_values("month")
+    attendance = load("kpi_attendance_by_department")
 
     late_rate = late["late_arrivals"].sum() / late["scheduled_shifts"].sum() * 100
     double_share = long_shifts["double_shifts"].sum() / long_shifts["worked_shifts"].sum() * 100
 
+    # Same timesheet period as the Working hours tab
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Late arrival rate", f"{late_rate:.1f}%")
-    col2.metric("Early departure days", f"{early['early_departure_days'].sum():,}")
-    col3.metric("Overtime hours", f"{overtime['overtime_hours'].sum():,.0f}")
-    col4.metric("Double shift share", f"{double_share:.2f}%")
+    col1.metric(f"Late arrival rate ({period})", f"{late_rate:.1f}%")
+    col2.metric(f"Early departure days ({period})",
+                f"{early['early_departure_days'].sum():,}")
+    col3.metric(f"Overtime hours ({period})",
+                f"{overtime['overtime_hours'].sum():,.0f}")
+    col4.metric(f"Double shift share ({period})", f"{double_share:.2f}%")
 
-    top = attendance.nlargest(15, "scheduled_shifts")
+    start, end = date_filter("attendance_dates", long_shifts["month"].iloc[0],
+                             long_shifts["month"].iloc[-1])
+
+    fig = px.bar(
+        long_shifts[long_shifts["month"].between(start, end)],
+        x="month", y="double_shifts",
+        title="Double shifts (over 16 hours) per month",
+        labels={"month": "Month", "double_shifts": "Double shifts"},
+    )
+    # Whole numbers only
+    fig.update_yaxes(tickformat="d")
+    st.plotly_chart(fig)
+    st.caption("Jul-Sep 2025: low-volume data gap, so the drop is missing "
+               "data, not fewer double shifts.")
+
+    with_dept = attendance[attendance["department"] != "No department"]
+    top = with_dept.nlargest(15, "scheduled_shifts")
     # Rates, so busy and quiet departments compare fairly
     for name, col in [("Late arrivals", "late_arrivals"),
                       ("Early departures", "early_departures"),
@@ -154,15 +174,3 @@ with attendance_tab:
     ).update_yaxes(autorange="reversed"))
     st.caption("Scheduled shifts only (~42% of punches). "
                "Shifts with no department are left out.")
-
-    monthly = long_shifts[long_shifts["month"].between(start, end)]
-    fig = px.bar(
-        monthly, x="month", y="double_shifts",
-        title="Double shifts (over 16 hours) per month",
-        labels={"month": "Month", "double_shifts": "Double shifts"},
-    )
-    # Whole numbers only
-    fig.update_yaxes(tickformat="d")
-    st.plotly_chart(fig)
-    st.caption("Jul-Sep 2025: low-volume data gap, so the drop is missing "
-               "data, not fewer double shifts.")

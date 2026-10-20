@@ -77,9 +77,11 @@ with workforce_tab:
     st.caption("Before Oct 2024, earlier leavers are missing from the file, "
                "so headcount is undercounted.")
 
+    # Month rows are dated the 1st, so count from the start date's month
+    monthly = turnover[turnover["month"].between(start.replace(day=1), end)]
     fig = px.bar(
-        turnover[turnover["month"].between(start, end)],
-        x="month", y=["voluntary", "involuntary"], title="Terminations by month",
+        monthly.rename(columns={"voluntary": "Voluntary", "involuntary": "Involuntary"}),
+        x="month", y=["Voluntary", "Involuntary"], title="Terminations by month",
         labels={"month": "Month", "value": "Terminations", "variable": "Type"},
     )
     fig.update_yaxes(dtick=1)
@@ -128,9 +130,10 @@ with hours_tab:
     # Show the whole selected range, even days with no data
     fig.update_xaxes(range=[start, end])
     st.plotly_chart(fig)
-    st.caption("Jul-mid-Sep 2025: low-volume data gap (days with no data "
-               "appear as straight segments). The spike around 14 Sep is the "
-               "switch to the new timekeeping system.")
+    st.caption("Jul – mid-Sep 2025: low-volume data gap (days with no data "
+               "appear as straight segments). The spike on 14 Sep is a Sunday "
+               "right after the gap: weekend shifts run longer, and few other "
+               "days fall in its 7-day window.")
 
 with attendance_tab:
     late = load("kpi_late_arrivals")
@@ -170,8 +173,9 @@ with attendance_tab:
 
     start, end = date_filter("attendance_dates", long_shifts["month"].iloc[0],
                              long_shifts["month"].iloc[-1])
+    # Month rows are dated the 1st, so count from the start date's month
     fig = px.bar(
-        long_shifts[long_shifts["month"].between(start, end)],
+        long_shifts[long_shifts["month"].between(start.replace(day=1), end)],
         x="month", y="double_shifts",
         title="Double shifts (over 16 hours) per month",
         labels={"month": "Month", "double_shifts": "Double shifts"},
@@ -181,5 +185,6 @@ with attendance_tab:
     # One tick per month, shown as month and year
     fig.update_xaxes(dtick="M1", tickformat="%b %Y", hoverformat="%b %Y")
     st.plotly_chart(fig)
-    st.caption("Jul-Sep 2025: low-volume data gap, so the drop is missing "
-               "data, not fewer double shifts.")
+    st.caption(f"Jul – Sep 2025: low-volume data gap, so the drop is missing "
+               f"data, not fewer double shifts. {last_day:%b %Y} only runs to "
+               f"{last_day:%d %b}.")

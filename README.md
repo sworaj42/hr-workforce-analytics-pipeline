@@ -4,6 +4,29 @@ An end-to-end ELT pipeline for hospital workforce data. Raw employee and timeshe
 
 ![Pipeline architecture](docs/architecture.svg)
 
+## Quick start
+
+**Needs:** Docker Desktop. Ports 5433, 8000, 8080, 8501, 9000 and 9001 must
+be free.
+
+    git clone https://github.com/sworaj42/hr-workforce-analytics-pipeline.git
+    cd hr-workforce-analytics-pipeline
+    cp .env.example .env
+    docker compose up -d
+
+**Run the pipeline:** in Airflow, trigger `hr_pipeline` (or
+`docker compose exec airflow-scheduler airflow dags trigger hr_pipeline`).
+A run takes under a minute; then refresh the dashboard.
+
+| Service | URL | Login (from `.env`) |
+|---|---|---|
+| Airflow | http://localhost:8080 | `AIRFLOW_ADMIN_USER` / `AIRFLOW_ADMIN_PASSWORD` |
+| API docs | http://localhost:8000/docs | `admin` or `viewer` / `API_ADMIN_PASSWORD`, `API_VIEWER_PASSWORD` |
+| Dashboard | http://localhost:8501 | none |
+| MinIO console | http://localhost:9001 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` |
+
+Configuration, options and troubleshooting: [docs/setup.md](docs/setup.md)
+
 ## Medallion layers
 
 One PostgreSQL database with a schema per layer. Bronze keeps the files as

@@ -64,8 +64,9 @@ with workforce_tab:
         labels={"avg_tenure_years": "Years", "department_name": "Department",
                 "employees": "Employees"},
     ))
-    st.caption(f"Static snapshot on {last_day:%d %b %Y}. Departments with one "
-               f"employee ({len(tenure) - len(shared)} of {len(tenure)}) are left out.")
+    st.caption(f"Static, all employees on file (current staff and leavers). "
+               f"Departments with one employee ({len(tenure) - len(shared)} of "
+               f"{len(tenure)}) are left out.")
 
     start, end = date_filter("workforce_dates", headcount["as_of_date"].iloc[0], last_day)
     st.plotly_chart(px.line(
@@ -167,22 +168,23 @@ with attendance_tab:
         labels={"department": "Department", "value": "% of scheduled shifts",
                 "variable": "Measure"},
     ).update_yaxes(autorange="reversed"))
-    st.caption(f"Static rates for {period}. Shifts with no department are left out.")
+    st.caption(f"Static rates for {period}. Shifts with no department are left out. "
+               "Departments with the same name under different ID prefixes are "
+               "kept separate. High rates may partly reflect schedule entries "
+               "that don't match actual shift patterns.")
 
     start, end = date_filter("attendance_dates", long_shifts["month"].iloc[0],
                              long_shifts["month"].iloc[-1])
     # Month rows are dated the 1st, so count from the start date's month
     fig = px.bar(
         long_shifts[long_shifts["month"].between(start.replace(day=1), end)],
-        x="month", y="double_shifts",
-        title="Double shifts (over 16 hours) per month",
-        labels={"month": "Month", "double_shifts": "Double shifts"},
+        x="month", y="double_shift_pct",
+        title="Double shifts (over 16 hours), % of worked shifts per month",
+        labels={"month": "Month", "double_shift_pct": "% of worked shifts"},
     )
-    # Whole numbers only
-    fig.update_yaxes(tickformat="d")
     # One tick per month, shown as month and year
     fig.update_xaxes(dtick="M1", tickformat="%b %Y", hoverformat="%b %Y")
     st.plotly_chart(fig)
-    st.caption(f"Jul – Sep 2025: low-volume data gap, so the drop is missing "
-               f"data, not fewer double shifts. {last_day:%b %Y} only runs to "
-               f"{last_day:%d %b}.")
+    st.caption(f"{first_day:%B} starts on {first_day:%d %b} and {last_day:%B} "
+               f"ends on {last_day:%d %b}, so both are partial months. "
+               "Jul – mid-Sep 2025 is a low-volume data gap.")

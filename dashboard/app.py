@@ -25,8 +25,7 @@ def date_filter(key, first, last):
                      value=(first, last), format="YYYY-MM-DD", key=key)
 
 
-CARDS_NOTE = ("Cards cover the full data period; the date range below "
-              "applies only to the charts.")
+CARDS_NOTE = "Cards cover the full data period and are not affected by the date range."
 
 st.set_page_config(page_title="HR Workforce Dashboard", layout="wide")
 st.title("HR Workforce Dashboard")
@@ -128,9 +127,9 @@ with hours_tab:
         orientation="h", title="Total hours by department (top 15)",
         labels={"total_hours": "Hours", "department": "Department"},
     ).update_yaxes(categoryorder="total ascending"))
-    st.caption(f"Excludes {no_dept_hours:,.0f} hours "
-               f"({no_dept_hours / total_hours * 100:.1f}% of worked hours) "
-               "with no department in the source.")
+    st.caption(f"Full data period, not affected by the date range. Excludes "
+               f"{no_dept_hours:,.0f} hours ({no_dept_hours / total_hours * 100:.1f}% "
+               "of worked hours) with no department in the source.")
 
 with attendance_tab:
     late = load("kpi_late_arrivals")
@@ -183,5 +182,5 @@ with attendance_tab:
         labels={"department": "Department", "value": "% of scheduled shifts",
                 "variable": "Measure"},
     ).update_yaxes(autorange="reversed"))
-    st.caption("Scheduled shifts only (~42% of punches). "
-               "Shifts with no department are left out.")
+    st.caption("Full data period, not affected by the date range. Scheduled "
+               "shifts only (~42% of punches). Shifts with no department are left out.")

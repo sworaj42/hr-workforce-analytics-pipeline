@@ -90,18 +90,37 @@ with workforce_tab:
                "read with the employee count.")
 
 with hours_tab:
+    # Cards use the full data, not the date filter
+    per_employee = load("kpi_avg_working_hours")
+    all_dept_hours = load("kpi_hours_by_department")
+
+    total_hours = all_dept_hours["total_hours"].sum()
+    employee_days = per_employee["days_worked"].sum()
+    no_dept_hours = all_dept_hours.loc[
+        all_dept_hours["department"] == "No department", "total_hours"].sum()
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Avg hours per worked day", f"{total_hours / employee_days:.2f}")
+    col2.metric("Employees with worked hours", f"{len(per_employee):,}")
+    col3.metric("Total worked hours", f"{total_hours:,.0f}")
+
     st.plotly_chart(px.line(
         hours, x="work_date", y="rolling_7d_avg_hours",
         title="Average working hours per employee (7-day rolling)",
         labels={"work_date": "Date", "rolling_7d_avg_hours": "Hours"},
     ))
+    st.caption("Jul-mid-Sep 2025: low-volume data gap (days with no data "
+               "appear as straight segments). The spike around 14 Sep is the "
+               "switch to the new timekeeping system.")
+
     st.plotly_chart(px.bar(
         dept_hours.nlargest(15, "total_hours"), x="total_hours", y="department",
         orientation="h", title="Total hours by department (top 15)",
         labels={"total_hours": "Hours", "department": "Department"},
     ).update_yaxes(categoryorder="total ascending"))
-    st.caption("Jul-Sep 2025: low-volume data gap, not a real drop. "
-               "Punches with no department are left out of the bar chart.")
+    st.caption(f"Excludes {no_dept_hours:,.0f} hours "
+               f"({no_dept_hours / total_hours * 100:.1f}% of worked hours) "
+               "with no department in the source.")
 
 with attendance_tab:
     # Cards use the full data, not the date filter

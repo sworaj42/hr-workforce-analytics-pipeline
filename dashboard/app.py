@@ -47,18 +47,47 @@ workforce_tab, hours_tab, attendance_tab = st.tabs(
 )
 
 with workforce_tab:
+    # Cards use the full data, not the date filter
+    all_headcount = load("kpi_active_headcount").sort_values("as_of_date")
+    all_turnover = load("kpi_turnover_trend")
+    tenure = load("kpi_avg_tenure_by_department")
+    attrition = load("kpi_early_attrition_rate")
+
+    # Weighted by employees, so big departments count more
+    avg_tenure = (tenure["avg_tenure_years"] * tenure["employees"]).sum() / tenure["employees"].sum()
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Current headcount", all_headcount["active_count"].iloc[-1])
+    col2.metric("Total terminations", all_turnover["terminations"].sum())
+    col3.metric("Average tenure (years)", f"{avg_tenure:.1f}")
+    col4.metric("Early attrition (90 days)",
+                f"{attrition['early_attrition_rate_pct'].iloc[0]}%")
+
     st.plotly_chart(px.line(
         headcount, x="as_of_date", y="active_count",
         title="Active headcount over time",
         labels={"as_of_date": "Date", "active_count": "Active employees"},
     ))
-    st.plotly_chart(px.bar(
+    st.caption("Before Oct 2024, earlier leavers are missing from the file, "
+               "so headcount is undercounted.")
+
+    fig = px.bar(
         turnover, x="month", y=["voluntary", "involuntary"],
         title="Terminations by month",
         labels={"month": "Month", "value": "Terminations", "variable": "Type"},
+    )
+    fig.update_yaxes(dtick=1)
+    st.plotly_chart(fig)
+
+    st.plotly_chart(px.bar(
+        tenure.sort_values("avg_tenure_years"), x="avg_tenure_years",
+        y="department_name", orientation="h", hover_data=["employees"],
+        height=800, title="Average tenure by department",
+        labels={"avg_tenure_years": "Years", "department_name": "Department",
+                "employees": "Employees"},
     ))
-    st.caption("Before Oct 2024, earlier leavers are missing from the file, "
-               "so headcount is undercounted.")
+    st.caption("29 of 38 departments have one employee; "
+               "read with the employee count.")
 
 with hours_tab:
     st.plotly_chart(px.line(

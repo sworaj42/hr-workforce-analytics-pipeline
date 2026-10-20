@@ -242,6 +242,29 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  dashboard:
+    # Same image as the API: one Python image with all our requirements
+    image: hr-api
+    container_name: hr_dashboard
+    command: streamlit run dashboard/app.py --server.port 8501 --server.address 0.0.0.0
+    environment:
+      POSTGRES_HOST: warehouse-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Lets app.py import the pipeline package
+      PYTHONPATH: /app
+    volumes:
+      - ./dashboard:/app/dashboard
+      - ./pipeline:/app/pipeline
+    ports:
+      - "8501:8501"
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
 volumes:
   warehouse_data:
   minio_data:

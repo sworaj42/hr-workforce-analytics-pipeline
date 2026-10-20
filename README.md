@@ -1,6 +1,6 @@
 # HR Workforce Pipeline
 
-End-to-end ELT pipeline for employee and timesheet data: MinIO → Postgres (bronze → silver → gold) → API and dashboard, orchestrated by Airflow.
+An end-to-end ELT pipeline for hospital workforce data. Raw employee and timesheet extracts land in MinIO, are loaded and cleaned through bronze, silver, and gold layers in PostgreSQL under Airflow orchestration, and are served through a FastAPI service and a Streamlit dashboard. Everything runs in Docker.
 
 ![Pipeline architecture](docs/architecture.svg)
 
